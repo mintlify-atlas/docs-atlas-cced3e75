@@ -1,0 +1,97 @@
+{
+  "projectType": "saas",
+  "projectName": "Miniswimmer",
+  "projectDescription": "Swimming academy platform for babies, children, and adults with multi-location support in Chile",
+  "theme": "almond",
+  "primaryColor": "#d6a67c",
+  "lightColor": "#ede0b4",
+  "darkColor": "#ad62ae",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "features"]
+          },
+          {
+            "group": "Setup",
+            "pages": ["setup/installation", "setup/configuration", "setup/environment-variables"]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/internationalization",
+              "features/authentication",
+              "features/scheduling",
+              "features/location-pages",
+              "features/content-management"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "components/overview",
+              "components/layout",
+              "components/common",
+              "components/forms"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/prismic",
+              "integrations/emailjs",
+              "integrations/analytics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Deployment Guide",
+            "pages": [
+              "deployment/overview",
+              "deployment/vercel",
+              "deployment/database",
+              "deployment/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-language support (English/Spanish) with next-intl",
+    "User authentication and session management with Prisma",
+    "Location-based pages for swimming schools in multiple Chilean cities",
+    "Class scheduling and rescheduling system",
+    "Content management integration with Prismic CMS",
+    "Responsive design with Tailwind CSS",
+    "Form handling with React Hook Form and Yup validation",
+    "Email notifications via EmailJS",
+    "SEO optimization with Next.js metadata and structured data",
+    "Google Analytics and Tag Manager integration"
+  ],
+  "publicApiSurface": [
+    "Hero component - Landing page hero section",
+    "FeaturesWithImage - Feature showcase with images",
+    "Testimonials - Customer testimonials display",
+    "Counter - Statistics counter component",
+    "Blog - Blog post listing",
+    "WhatsappContact - WhatsApp contact integration",
+    "RegendamientoSection - Class rescheduling section",
+    "Home page route - Main landing page",
+    "About page - Company information",
+    "Services page - Swimming program details",
+    "Pricing page - Pricing and service plans",
+    "Contact page - Contact form",
+    "Registration page - Class registration",
+    "Location pages - City-specific swimming school pages",
+    "Privacy Policy page - Privacy policy documentation",
+    "Pricing calculator - Service pricing calculator"
+  ]
+}
