@@ -676,6 +676,109 @@ const FAQ = () => {
   The grid-template-rows transition creates smooth accordion animation without JavaScript height calculations.
 </Tip>
 
+## RegendamientoSection Component
+
+Call-to-action section for class rescheduling with gradient background and prominent CTA button (`src/components/Common/RegendamientoSection/index.tsx:5-108`).
+
+### Features
+
+- Gradient purple background (`#ae5eab` to `#be7ebb`)
+- Internationalization support via next-intl
+- Highlighted text with underline SVG decoration
+- Responsive CTA button with arrow icon
+- Conditional rendering based on URL availability
+
+### Usage
+
+```tsx
+import RegendamientoSection from '@/components/Common/RegendamientoSection';
+
+<RegendamientoSection pageTraslation="homepage" />
+```
+
+### Props
+
+<ParamField path="pageTraslation" type="string" required>
+  Translation namespace prefix (e.g., "homepage")
+</ParamField>
+
+### Translation Structure
+
+The component requires these translation keys in your dictionary:
+
+```json
+{
+  "homepage": {
+    "reagendamiento_section": {
+      "title": "¿Necesitas <marker>Reagendar</marker> tu Clase?",
+      "description": "Complete el formulario para reagendar su clase...",
+      "buttonText": "REAGENDAR CLASE",
+      "url": "/reagendamiento"
+    }
+  }
+}
+```
+
+### Implementation
+
+```tsx RegendamientoSection/index.tsx
+'use client';
+import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+
+export default function RegendamientoSection(props: any) {
+  const { pageTraslation } = props;
+  const t = useTranslations(`${pageTraslation}.reagendamiento_section`);
+  
+  return (
+    <section className="relative z-10 overflow-hidden bg-[linear-gradient(90deg,#ae5eab_0%,#be7ebb_100%)] py-17.5 dark:bg-gradient-to-t dark:from-gray-dark dark:to-gray-dark lg:py-[100px]">
+      <div className="container mx-auto w-full max-w-[1170px]">
+        <div className="mx-auto w-full max-w-[590px]">
+          <div className="text-center">
+            <h2 className='mb-5 font-satoshi text-heading-4 font-bold text-white'>
+              {t.rich('title', {
+                marker: chunks => (
+                  <span className='relative text-[#87e0ff]'>
+                    {chunks}
+                    <span className='absolute bottom-0.5 left-0 h-2 w-full'>
+                      {/* Underline SVG */}
+                    </span>
+                  </span>
+                ),
+              })}
+            </h2>
+            <p className="mb-10 text-base text-slate-50">
+              {t('description')}
+            </p>
+          </div>
+
+          <div className='flex justify-center items-center'>
+            {t('url') !== "" && (
+              <div className='ml-4 mb-5 relative z-10 mt-6'>
+                <Link 
+                  href={t('url')}
+                  rel="noopener noreferrer nofollow" 
+                  className='w-96 inline-flex justify-center items-center gap-4 rounded-full bg-black py-2 pl-7.5 pr-2 font-satoshi font-medium text-white hover:bg-opacity-90'
+                >
+                  <span className='text-lg uppercase'>{t('buttonText')}</span>
+                  <span className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white'>
+                    {/* Arrow icon */}
+                  </span>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+<Tip>
+  The `<marker>` tag in translations creates highlighted text with an animated underline SVG decoration.
+</Tip>
+
 ## SectionHeader Component
 
 Reusable section header with title and description (`src/components/Common/SectionHeader.tsx`).
