@@ -1,0 +1,206 @@
+---
+title: 'Deployment Overview'
+description: 'Complete guide to deploying the Miniswimmer platform to production'
+icon: 'rocket'
+---
+
+## Introduction
+
+Miniswimmer is a Next.js 15 SaaS application built for swimming schools. This guide covers everything you need to deploy the platform to production, from infrastructure requirements to monitoring.
+
+## System Requirements
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 14.0.0 or higher (20.x recommended)
+  </Card>
+  <Card title="Database" icon="database">
+    PostgreSQL 12+ with connection pooling support
+  </Card>
+  <Card title="Package Manager" icon="box">
+    npm or yarn (yarn recommended for this project)
+  </Card>
+  <Card title="Platform" icon="server">
+    Vercel (primary), Docker, or any Node.js host
+  </Card>
+</CardGroup>
+
+## Tech Stack
+
+The Miniswimmer platform uses the following technologies:
+
+- **Framework**: Next.js 15.2.8 with React 19
+- **Language**: TypeScript 5.3.3
+- **Database ORM**: Prisma Client
+- **Styling**: Tailwind CSS 3.4.4
+- **Internationalization**: next-intl 3.26.5
+- **Forms**: React Hook Form with Yup validation
+- **Email**: EmailJS
+- **Payments**: Stripe integration
+
+## Deployment Architecture
+
+<Steps>
+  <Step title="Build Process">
+    The application uses Next.js static and server-side rendering. The build process includes:
+    
+    ```json package.json
+    {
+      "scripts": {
+        "build": "next build",
+        "postbuild": "node scripts/generate-sitemap.js"
+      }
+    }
+    ```
+    
+    The postbuild script automatically generates an SEO-optimized sitemap.
+  </Step>
+  
+  <Step title="Database Layer">
+    PostgreSQL database with Prisma ORM for type-safe database access. The schema includes:
+    
+    - User authentication (Account, Session, User models)
+    - API key management
+    - Stripe subscription integration
+    - Password reset functionality
+  </Step>
+  
+  <Step title="Static Assets">
+    Static files are served from the `/public` directory and automatically optimized by Next.js.
+  </Step>
+  
+  <Step title="API Routes">
+    Server-side API routes handle:
+    - Stripe webhook processing
+    - Authentication flows
+    - Data mutations
+  </Step>
+</Steps>
+
+## Environment Variables
+
+<Warning>
+  Never commit `.env` files to version control. Always use your platform's secure environment variable management.
+</Warning>
+
+The application requires the following environment variables:
+
+<AccordionGroup>
+  <Accordion title="Database Configuration" icon="database">
+    ```bash
+    DATABASE_URL="postgresql://user:password@host:5432/database?schema=public"
+    SHADOW_DATABASE_URL="postgresql://user:password@host:5432/shadow_db?schema=public"
+    ```
+    
+    - `DATABASE_URL`: Main PostgreSQL connection string
+    - `SHADOW_DATABASE_URL`: Required for Prisma migrations in cloud environments (Heroku, etc.)
+  </Accordion>
+  
+  <Accordion title="Authentication & API Keys" icon="key">
+    Configure authentication providers and API keys for third-party services:
+    
+    - OAuth providers (Google, etc.)
+    - Session secrets
+    - API keys for integrations
+  </Accordion>
+  
+  <Accordion title="Stripe Integration" icon="credit-card">
+    ```bash
+    STRIPE_PUBLISHABLE_KEY="pk_live_..."
+    STRIPE_SECRET_KEY="sk_live_..."
+    STRIPE_WEBHOOK_SECRET="whsec_..."
+    ```
+  </Accordion>
+  
+  <Accordion title="Email Service" icon="envelope">
+    EmailJS configuration for transactional emails:
+    
+    - Service ID
+    - Template IDs
+    - Public key
+  </Accordion>
+</AccordionGroup>
+
+## Pre-Deployment Checklist
+
+<Steps>
+  <Step title="Code Quality">
+    Run the style checks and build verification:
+    
+    ```bash
+    npm run check-style
+    npm run test-build
+    ```
+    
+    This runs ESLint, Prettier, and a full production build.
+  </Step>
+  
+  <Step title="Database Migrations">
+    Ensure all Prisma migrations are created and tested:
+    
+    ```bash
+    npx prisma migrate deploy
+    npx prisma generate
+    ```
+  </Step>
+  
+  <Step title="Environment Variables">
+    Verify all required environment variables are set in your deployment platform.
+  </Step>
+  
+  <Step title="Dependencies">
+    <Note>
+      This project uses React 19. When installing dependencies, you may need to use the `--legacy-peer-deps` flag to resolve peer dependency conflicts.
+    </Note>
+    
+    ```bash
+    npm install --legacy-peer-deps
+    ```
+  </Step>
+</Steps>
+
+## Build Scripts
+
+The application includes several npm scripts for deployment:
+
+| Script | Command | Purpose |
+|--------|---------|----------|
+| `build` | `next build` | Creates production build |
+| `postbuild` | `node scripts/generate-sitemap.js` | Generates sitemap after build |
+| `start` | `next start` | Starts production server |
+| `check-style` | `npm run check-format && npm run check-lint` | Validates code style |
+| `test-build` | `npm run check-style && npm run build` | Full pre-deployment check |
+
+## Deployment Targets
+
+<CardGroup cols={3}>
+  <Card title="Vercel" icon="triangle" href="/deployment/vercel">
+    Recommended platform with zero-config deployment
+  </Card>
+  <Card title="Database" icon="database" href="/deployment/database">
+    PostgreSQL setup and Prisma migrations
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/deployment/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Set Up Database">
+    Follow the [Database Setup Guide](/deployment/database) to configure PostgreSQL and run migrations.
+  </Step>
+  
+  <Step title="Deploy to Vercel">
+    Use the [Vercel Deployment Guide](/deployment/vercel) for step-by-step deployment instructions.
+  </Step>
+  
+  <Step title="Monitor and Maintain">
+    Set up monitoring, logging, and regular maintenance procedures.
+  </Step>
+</Steps>
+
+<Tip>
+  The Miniswimmer platform is currently hosted at [miniswimmer.us](https://www.miniswimmer.us) on Vercel with PostgreSQL database.
+</Tip>

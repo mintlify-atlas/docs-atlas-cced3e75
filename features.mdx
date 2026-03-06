@@ -1,0 +1,837 @@
+---
+title: 'Platform Features'
+description: 'Comprehensive overview of all Miniswimmer platform features and capabilities'
+---
+
+# Platform Features
+
+Miniswimmer is a comprehensive Next.js 15 SaaS platform designed specifically for swimming academies. Built with modern web technologies, it provides a complete solution for managing and promoting swimming schools.
+
+## Core Technologies
+
+<CardGroup cols={3}>
+  <Card title="Next.js 15" icon="react">
+    Latest App Router with Server Components and React 19
+  </Card>
+  <Card title="TypeScript" icon="code">
+    Fully typed codebase for better DX and reliability
+  </Card>
+  <Card title="Tailwind CSS" icon="paintbrush">
+    Utility-first styling with custom design system
+  </Card>
+</CardGroup>
+
+## Internationalization (i18n)
+
+Full multilingual support powered by `next-intl` for global reach.
+
+### Implementation Details
+
+**Supported Languages:**
+- English (en)
+- Spanish (es) - Default locale
+
+The i18n system is configured in `src/i18n/request.ts:1-50` and uses a sophisticated message merging strategy:
+
+```typescript src/i18n/request.ts
+import { getRequestConfig } from 'next-intl/server';
+import { cookies } from 'next/headers';
+
+export default getRequestConfig(async () => {
+  const cookieStore = await cookies();
+  const requestedLocale = cookieStore.get('locale')?.value || '';
+  
+  let locale = 'es'; // Default locale
+  
+  if (integrations.isI18nEnabled && SUPPORTED_LOCALES.includes(requestedLocale)) {
+    locale = requestedLocale;
+  }
+  
+  // Load and merge translations
+  const defaultMessages = (await import('../../dictionary/es.json')).default;
+  const userMessages = (await import(`../../dictionary/${locale}.json`)).default;
+  
+  return { locale, messages: deepmerge(defaultMessages, userMessages) };
+});
+```
+
+### Language Switcher Component
+
+The language switcher in `src/components/Header/language-switcher.tsx:1-87` provides:
+
+- Flag icons for visual language identification
+- Cookie-based locale persistence
+- Automatic page refresh on language change
+- Dropdown UI with keyboard navigation
+
+**Usage Example:**
+```tsx
+import { LanguageSwitcher } from '@/components/Header/language-switcher';
+
+<LanguageSwitcher />
+```
+
+### Translation Files
+
+Translations are stored in JSON format:
+- `dictionary/en.json` - English translations
+- `dictionary/es.json` - Spanish translations
+
+**Using Translations:**
+```tsx
+import { useTranslations } from 'next-intl';
+
+function MyComponent() {
+  const t = useTranslations('homepage.features_section');
+  return <h1>{t('title')}</h1>;
+}
+```
+
+<Tip>
+  The deepmerge strategy ensures that if a translation is missing in the user's locale, it falls back to the default Spanish translation.
+</Tip>
+
+## Authentication System
+
+Robust user authentication with Prisma ORM and PostgreSQL.
+
+### Database Schema
+
+The authentication system uses the following models defined in `prisma/schema.prisma:18-82`:
+
+```prisma prisma/schema.prisma
+model User {
+  id                     String    @id @default(cuid())
+  name                   String?
+  email                  String?   @unique
+  emailVerified          DateTime?
+  image                  String?
+  password               String?
+  passwordResetToken     String?   @unique
+  passwordResetTokenExp  DateTime?
+  role                   String?   @default("USER")
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  createdAt              DateTime  @default(now())
+  accounts               Account[]
+  sessions               Session[]
+  apiKeys                ApiKey[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### Features
+
+<CardGroup cols={2}>
+  <Card title="OAuth Support" icon="lock">
+    Ready for Google, GitHub, and other OAuth providers
+  </Card>
+  <Card title="Password Reset" icon="key">
+    Token-based password recovery system
+  </Card>
+  <Card title="Email Verification" icon="envelope-circle-check">
+    Verification token management
+  </Card>
+  <Card title="Role-Based Access" icon="users">
+    User roles with default "USER" role
+  </Card>
+</CardGroup>
+
+### Integration Status
+
+Authentication can be toggled via `integrations.config.tsx:6`:
+
+```typescript
+const integrations = {
+  isAuthEnabled: true,
+  // ... other integrations
+};
+```
+
+## Responsive Design
+
+Mobile-first design with custom breakpoints for all device sizes.
+
+### Breakpoint System
+
+Defined in `tailwind.config.ts:27-32`:
+
+```typescript
+screens: {
+  xsm: '375px',   // Extra small mobile
+  lsm: '425px',   // Large mobile
+  sm: '640px',    // Tablet
+  md: '768px',    // Medium tablet
+  lg: '1024px',   // Desktop
+  xl: '1280px',   // Large desktop
+  '2xl': '1536px',
+  '3xl': '2000px', // Extra large displays
+}
+```
+
+### Responsive Utilities
+
+The platform uses Tailwind's responsive modifiers:
+
+```tsx Example: Language Switcher Mobile Adaptation
+<span className="min-[200px]:hidden">{language.code}</span>
+<span className="max-[200px]:hidden">{language.name}</span>
+```
+
+See `src/components/Header/language-switcher.tsx:52-54` for real-world usage.
+
+### Layout Components
+
+The site layout in `src/app/(site)/layout.tsx:1-28` provides:
+
+- Sticky header with navigation
+- Responsive footer
+- Top loading bar with `nextjs-toploader`
+- Toast notifications for user feedback
+- Theme persistence across pages
+
+## Form Handling & Validation
+
+Powerful form management with React Hook Form and Yup validation.
+
+### Contact Form Implementation
+
+The contact form in `src/components/Common/ContactForm/index.tsx:1-192` demonstrates:
+
+```tsx
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+
+const schema = yup.object({
+  nombre: yup.string().required('El nombre es requerido'),
+  email: yup.string().email('Email inválido').required('El email es requerido'),
+  mensaje: yup.string().required('El mensaje es requerido')
+}).required();
+
+type FormData = yup.InferType<typeof schema>;
+
+function ContactForm() {
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
+    resolver: yupResolver(schema)
+  });
+  
+  const onSubmit = async (data: FormData) => {
+    // Email sending logic with EmailJS
+  };
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input {...register('nombre')} />
+      {errors.nombre && <p>{errors.nombre.message}</p>}
+      {/* More fields */}
+    </form>
+  );
+}
+```
+
+### Form Features
+
+<CardGroup cols={2}>
+  <Card title="Client-side Validation" icon="shield-check">
+    Instant feedback with Yup schema validation
+  </Card>
+  <Card title="Type Safety" icon="code">
+    TypeScript types inferred from Yup schemas
+  </Card>
+  <Card title="Error Messages" icon="triangle-exclamation">
+    User-friendly validation error display
+  </Card>
+  <Card title="Loading States" icon="spinner">
+    Disabled submit buttons during processing
+  </Card>
+</CardGroup>
+
+### Success/Error Handling
+
+The form system includes state management for submission feedback:
+
+```tsx src/components/Common/ContactForm/index.tsx
+const [isSentEmail, setIsSentEmail] = useState({
+  sentEmail: false,
+  isFailure: false,
+  title: "Conectando al satélite, por favor espere un momento ⌛",
+  text: "Estamos enviando su solicitud.",
+});
+```
+
+See `src/components/Common/ContactForm/index.tsx:20-25` and `72-90` for complete implementation.
+
+## Email Integration
+
+Seamless email sending through EmailJS for contact forms and notifications.
+
+### EmailJS Configuration
+
+Configured in `src/components/Common/ContactForm/index.tsx:65-70`:
+
+```typescript
+await emailjs.send(
+  'service_ucb8wga',      // Service ID
+  'template_3z2nv7b',     // Template ID - CONTACTO-CHILE
+  templateParams,
+  'Csc41asZklkk5HTWk'     // Public Key
+);
+```
+
+### Template Parameters
+
+Structured data sent to email templates:
+
+```typescript
+const templateParams = {
+  from_name: data.nombre,
+  from_email: data.email,
+  message: data.mensaje,
+  to_name: 'Miniswimmer',
+};
+```
+
+### Multiple Form Types
+
+The platform includes several form implementations:
+
+- **ContactForm** - General inquiries (`src/components/Common/ContactForm/index.tsx`)
+- **TestClassForm** - Trial class registration
+- **ReagendamientoForm** - Rescheduling requests
+
+All use the same EmailJS infrastructure with different templates.
+
+<Warning>
+  EmailJS credentials are currently hardcoded in the source. Move these to environment variables in production:
+  - `NEXT_PUBLIC_EMAILJS_SERVICE_ID`
+  - `NEXT_PUBLIC_EMAILJS_TEMPLATE_ID`
+  - `NEXT_PUBLIC_EMAILJS_PUBLIC_KEY`
+</Warning>
+
+## SEO Optimization
+
+Comprehensive SEO features for maximum search engine visibility.
+
+### Metadata Configuration
+
+Each page defines rich metadata as shown in `src/app/(site)/page.tsx:6-53`:
+
+```typescript
+export const metadata: Metadata = {
+  title: "Matronatación y Academia de Natación para Bebés, Niños, Adultos",
+  description: "Nuestro método utiliza programación neurolingüística...",
+  alternates: {
+    canonical: 'https://miniswimmer.cl',
+    languages: {
+      'en-US': 'https://miniswimmer.cl',
+      'es': 'https://miniswimmer.cl',
+    },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  openGraph: {
+    type: "website",
+    url: 'https://miniswimmer.cl',
+    title: "Matronatación y Academia de Natación...",
+    description: "Nuestro método utiliza...",
+    images: [{
+      url: "https://images.prismic.io/miniswimmerchile/...",
+      width: 1200,
+      height: 630,
+      alt: "Miniswimmer Method"
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@miniswimmer_edu",
+    creator: "@miniswimmer_edu",
+    // ... complete Twitter card metadata
+  },
+};
+```
+
+### Structured Data (Schema.org)
+
+JSON-LD structured data for rich search results:
+
+```typescript src/app/(site)/page.tsx
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Miniswimmer",
+  "url": "https://miniswimmer.cl",
+  "logo": "https://images.prismic.io/miniswimmerchile/...",
+  "description": "Nuestro método utiliza...",
+  "sameAs": [
+    "https://www.facebook.com/miniswimmer.academy",
+    "https://www.instagram.com/miniswimmer.chile",
+    "https://www.instagram.com/miniswimmer.us/",
+    "https://www.linkedin.com/company/105056316"
+  ]
+};
+```
+
+See `src/app/(site)/page.tsx:55-67` for the complete schema.
+
+### Automatic Sitemap Generation
+
+The platform includes a post-build script that generates a sitemap automatically:
+
+```javascript scripts/generate-sitemap.js
+function generateSitemap() {
+  const baseUrl = 'https://miniswimmer.cl';
+  const pagesDir = path.join(process.cwd(), 'src/app/(site)');
+  
+  // Scans all page.tsx files and generates sitemap.xml
+  // with priority and changeFrequency based on route type
+}
+```
+
+Run automatically after build: `"postbuild": "node scripts/generate-sitemap.js"`
+
+See `scripts/generate-sitemap.js:1-118` for the complete implementation.
+
+### SEO Features Summary
+
+<CardGroup cols={2}>
+  <Card title="Meta Tags" icon="tags">
+    Title, description, and Open Graph tags on every page
+  </Card>
+  <Card title="Canonical URLs" icon="link">
+    Proper canonical URLs with language alternates
+  </Card>
+  <Card title="Schema Markup" icon="sitemap">
+    JSON-LD structured data for rich results
+  </Card>
+  <Card title="Auto Sitemap" icon="map">
+    Automatically generated XML sitemap
+  </Card>
+  <Card title="Robots.txt" icon="robot">
+    Search engine crawling configuration
+  </Card>
+  <Card title="Social Cards" icon="share-nodes">
+    Twitter and Open Graph social sharing cards
+  </Card>
+</CardGroup>
+
+## Analytics & Tracking
+
+Integrated Google Analytics 4 and Google Tag Manager for comprehensive tracking.
+
+### Google Analytics Setup
+
+Implemented in `src/components/GoogleAnalytics.tsx:1-29`:
+
+```tsx
+'use client';
+import Script from 'next/script';
+
+export default function GoogleAnalytics() {
+  const measurementId = "G-R7QC4J3R7H";
+  
+  return (
+    <>
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${measurementId}');
+        `}
+      </Script>
+    </>
+  );
+}
+```
+
+### Google Tag Manager
+
+GTM is integrated in the root layout `src/app/layout.tsx:1-38`:
+
+```tsx
+import GoogleTagManager from '@/components/GoogleTagManager';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
+
+export default async function RootLayout({ children }) {
+  const gtmId = "GTM-K9KD3K78";
+  
+  return (
+    <html lang={locale}>
+      <head>
+        <GoogleTagManager />
+      </head>
+      <body>
+        {gtmId && (
+          <noscript>
+            <iframe src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`} />
+          </noscript>
+        )}
+        <GoogleAnalytics />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+<Note>
+  Analytics scripts use the `afterInteractive` loading strategy to ensure they don't block page rendering, improving Core Web Vitals scores.
+</Note>
+
+## Location Pages
+
+Dynamic location-specific pages for local SEO and targeted marketing.
+
+### Location Page Structure
+
+The platform includes dedicated pages for different locations:
+
+- **Chile:**
+  - `src/app/(site)/clases-natacion-penalolen/page.tsx`
+  - `src/app/(site)/clases-natacion-vina-del-mar/page.tsx`
+  - `src/app/(site)/clases-natacion-maintencillo/page.tsx`
+
+- **USA:**
+  - `src/app/(site)/swimming-lessons-in-miami-dade/page.tsx`
+  - `src/app/(site)/swimming-lessons-in-broward/page.tsx`
+
+Each location page includes:
+- Localized metadata for SEO
+- Location-specific schema markup
+- Custom content and imagery
+- Targeted contact forms
+
+### Location Page Benefits
+
+<CardGroup cols={2}>
+  <Card title="Local SEO" icon="map-location-dot">
+    Improved ranking in location-based searches
+  </Card>
+  <Card title="Targeted Content" icon="bullseye">
+    Content tailored to each location's audience
+  </Card>
+  <Card title="Language Support" icon="language">
+    Spanish for Chile, English for USA
+  </Card>
+  <Card title="Separate URLs" icon="link">
+    Dedicated URLs for better search indexing
+  </Card>
+</CardGroup>
+
+## CMS Integration
+
+Prismic CMS integration for flexible content management.
+
+### Image Hosting
+
+Images are served from Prismic CDN with automatic optimization:
+
+```javascript next.config.js
+images: {
+  remotePatterns: [
+    {
+      protocol: 'https',
+      hostname: 'images.prismic.io',
+      port: '',
+    },
+  ],
+  domains: ['images.prismic.io'],
+}
+```
+
+See `next.config.js:8-27` for image configuration.
+
+### Usage in Components
+
+Prismic images are referenced throughout the codebase:
+
+```tsx
+<Image
+  src="https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png?auto=format,compress"
+  width={1200}
+  height={630}
+  alt="Miniswimmer Method"
+/>
+```
+
+The `auto=format,compress` parameters enable automatic WebP conversion and compression.
+
+## Theme System
+
+Dark/Light mode support with `next-themes` and system preference detection.
+
+### Theme Provider Setup
+
+Configured in `src/app/(site)/providers.tsx:1-12`:
+
+```tsx
+"use client";
+import { ThemeProvider } from "next-themes";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider 
+      attribute="class" 
+      enableSystem={false} 
+      defaultTheme="light"
+    >
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+### Dark Mode Colors
+
+Dark mode variants defined in `tailwind.config.ts:64-106`:
+
+```typescript
+colors: {
+  stroke: {
+    DEFAULT: '#E8E8E8',
+    dark: '#394152',
+  },
+  gray: {
+    DEFAULT: '#F3F5F6',
+    dark: '#272E40',
+  },
+  // ... more dark mode colors
+}
+```
+
+### Using Dark Mode
+
+```tsx
+<div className="bg-white dark:bg-gray-dark text-black dark:text-white">
+  Content that adapts to theme
+</div>
+```
+
+## Scheduling & Registration
+
+Multiple form types for class registration and scheduling:
+
+### Available Forms
+
+1. **Registration Form** (`src/app/(site)/registration/page.tsx`)
+   - New student enrollment
+   - Program selection
+   - Contact information collection
+
+2. **Test Class Form** (`src/components/Common/TestClassForm/index.tsx`)
+   - Trial class booking
+   - Age group selection
+   - Preferred time slots
+
+3. **Rescheduling Form** (`src/components/Common/ReagendamientoForm/index.tsx`)
+   - Class rescheduling requests
+   - Current booking reference
+   - New preferred dates
+
+All forms integrate with EmailJS for instant notifications to administrators.
+
+## Custom Design System
+
+Custom Tailwind configuration with brand-specific colors and utilities.
+
+### Brand Colors
+
+```typescript tailwind.config.ts
+colors: {
+  primary: {
+    DEFAULT: '#AE5EAB',  // Purple brand color
+    dark: '#AE5EAB',
+  },
+  black: '#0E172B',
+  body: '#64748B',
+  // Status colors
+  red: { DEFAULT: '#F23030' },
+  green: { DEFAULT: '#00BC55' },
+}
+```
+
+### Custom Typography
+
+```typescript
+fontFamily: {
+  satoshi: ['Satoshi', 'sans-serif'],  // Primary font
+  inter: ['Inter', 'sans-serif'],      // Secondary font
+},
+fontSize: {
+  'heading-1': ['60px', '72px'],
+  'heading-2': ['48px', '58px'],
+  'heading-3': ['40px', '48px'],
+  // ... more custom sizes
+}
+```
+
+See `tailwind.config.ts:108-117` for typography configuration.
+
+### Extended Spacing
+
+Custom spacing values from 4.5rem to 230rem for precise layouts:
+
+```typescript
+spacing: {
+  4.5: '1.125rem',
+  15: '3.75rem',
+  30: '7.5rem',
+  100: '25rem',
+  230: '57.5rem',
+  // ... 80+ custom values
+}
+```
+
+See `tailwind.config.ts:118-213` for complete spacing scale.
+
+## Performance Features
+
+<CardGroup cols={2}>
+  <Card title="Next.js Image Optimization" icon="image">
+    Automatic WebP conversion and responsive images
+  </Card>
+  <Card title="Code Splitting" icon="scissors">
+    Automatic route-based code splitting
+  </Card>
+  <Card title="Server Components" icon="server">
+    React Server Components for faster initial load
+  </Card>
+  <Card title="Font Optimization" icon="font">
+    Self-hosted fonts with automatic optimization
+  </Card>
+</CardGroup>
+
+### Loading States
+
+Top loading bar from `nextjs-toploader`:
+
+```tsx src/app/(site)/layout.tsx
+import NextTopLoader from 'nextjs-toploader';
+
+<NextTopLoader 
+  color='#635BFF' 
+  crawlSpeed={300} 
+  showSpinner={false} 
+  shadow='none' 
+/>
+```
+
+See `src/app/(site)/layout.tsx:20` for configuration.
+
+## Integration Controls
+
+Centralized feature toggles via `integrations.config.tsx`:
+
+```typescript integrations.config.tsx
+const integrations = {
+  isSanityEnabled: false,
+  isOpenAIEnabled: false,
+  isAlgoliaEnabled: false,
+  isMailchimpEnabled: false,
+  isAuthEnabled: true,
+  isPaymentsEnabled: false,
+  isI18nEnabled: true,
+};
+```
+
+This allows enabling/disabling features without code changes.
+
+## Developer Experience
+
+### Code Quality Tools
+
+<Steps>
+  <Step title="ESLint">
+    TypeScript and React linting with custom rules
+    
+    ```bash
+    npm run check-lint
+    npm run fix-lint
+    ```
+  </Step>
+
+  <Step title="Prettier">
+    Code formatting with Tailwind CSS plugin
+    
+    ```bash
+    npm run check-format
+    npm run fix-format
+    ```
+  </Step>
+
+  <Step title="TypeScript">
+    Full type safety with strict mode enabled
+    
+    See `tsconfig.json` for compiler options
+  </Step>
+</Steps>
+
+### Available Scripts
+
+```json package.json
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "postbuild": "node scripts/generate-sitemap.js",
+    "check-style": "npm run check-format && npm run check-lint",
+    "fix-style": "npm run fix-format && npm run fix-lint",
+    "test-build": "npm run check-style && npm run build"
+  }
+}
+```
+
+See `package.json:8-20` for all available commands.
+
+## Summary
+
+The Miniswimmer platform is a production-ready, feature-rich solution that includes:
+
+✅ **Full internationalization** with English and Spanish support  
+✅ **Robust authentication** with OAuth and password reset  
+✅ **Responsive design** with custom breakpoints  
+✅ **Advanced forms** with validation and email integration  
+✅ **Comprehensive SEO** with metadata, schema, and sitemaps  
+✅ **Analytics tracking** with GA4 and GTM  
+✅ **Dark mode** with next-themes  
+✅ **CMS integration** with Prismic  
+✅ **Custom design system** with Tailwind CSS  
+✅ **Developer tools** for code quality and productivity  
+
+All features are built on modern Next.js 15 with App Router, TypeScript, and React 19 Server Components for optimal performance and developer experience.

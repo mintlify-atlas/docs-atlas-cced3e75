@@ -1,0 +1,226 @@
+---
+title: Prismic CMS Integration
+description: Learn how to integrate and use Prismic CMS for managing images and content in Miniswimmer
+icon: camera
+---
+
+## Overview
+
+Miniswimmer uses Prismic as a headless CMS for hosting and managing images throughout the platform. Prismic provides a CDN-backed image hosting solution with automatic format optimization and compression.
+
+## Configuration
+
+### Next.js Image Configuration
+
+Prismic images are configured in `next.config.js` to allow Next.js Image optimization:
+
+```javascript next.config.js
+const nextConfig = {
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.prismic.io',
+        port: '',
+      },
+    ],
+    domains: ['images.prismic.io'],
+  },
+};
+```
+
+<Note>
+  The configuration includes both `remotePatterns` (Next.js 13+) and `domains` (legacy support) to ensure compatibility across different Next.js versions.
+</Note>
+
+## Image URL Structure
+
+Prismic images follow a consistent URL structure with built-in optimization parameters:
+
+```
+https://images.prismic.io/{repository-name}/{image-id}_{filename}.{extension}?auto=format,compress
+```
+
+### Example URLs
+
+```javascript
+// Social media image for Chile location
+"https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png?auto=format,compress"
+
+// Viña del Mar location image
+"https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png?auto=format,compress"
+
+// Maintencillo location image
+"https://images.prismic.io/miniswimmerchile/aLToIWGNHVfTOeON_SOCIAL-MEDIA-Maintencillo.png?auto=format,compress"
+```
+
+## Usage in Components
+
+### Standard Image Tags
+
+For direct image URLs in metadata and JSON-LD:
+
+```tsx
+const metadata = {
+  openGraph: {
+    images: [
+      {
+        url: "https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png?auto=format,compress",
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
+  twitter: {
+    images: [
+      "https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png?auto=format,compress"
+    ],
+  },
+};
+```
+
+### Next.js Image Component
+
+When using the Next.js Image component, Prismic images benefit from automatic optimization:
+
+```tsx
+import Image from 'next/image';
+
+function LocationCard() {
+  return (
+    <Image
+      src="https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png?auto=format,compress"
+      alt="Viña del Mar Location"
+      width={1200}
+      height={630}
+      priority
+    />
+  );
+}
+```
+
+### Background Images
+
+For CSS background images:
+
+```tsx
+<div
+  style={{
+    backgroundImage: 'url("https://images.prismic.io/miniswimmerchile/aBkFm_IqRLdaB4XP_uno-about.png?auto=format,compress")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }}
+>
+  {/* Content */}
+</div>
+```
+
+## Optimization Parameters
+
+### Auto Format & Compress
+
+All Prismic images use `?auto=format,compress` for automatic optimization:
+
+- **auto=format**: Automatically serves the best image format (WebP, AVIF) based on browser support
+- **auto=compress**: Applies intelligent compression to reduce file size without quality loss
+
+### Additional Parameters
+
+You can add more parameters to further optimize images:
+
+```
+// Resize image width
+?auto=format,compress&w=800
+
+// Set image quality
+?auto=format,compress&q=80
+
+// Combine parameters
+?auto=format,compress&w=1200&h=630&fit=crop
+```
+
+<Tip>
+  For responsive images, use the `imwidth` parameter to generate srcset automatically:
+  `?auto=format,compress&imwidth=1920`
+</Tip>
+
+## Repository Structure
+
+Miniswimmer uses multiple Prismic repositories:
+
+- **miniswimmerchile**: Primary repository for Chile locations and general content
+- **miniswimmer-academy**: Academy-specific content and educational materials
+
+## Best Practices
+
+<Steps>
+  <Step title="Always include optimization parameters">
+    Every Prismic image URL should include `?auto=format,compress` for optimal performance.
+  </Step>
+  
+  <Step title="Use descriptive filenames">
+    Prismic preserves original filenames in the URL, making images easier to identify and maintain.
+  </Step>
+  
+  <Step title="Leverage CDN caching">
+    Prismic images are served via CDN. Use consistent URLs to maximize cache hits.
+  </Step>
+  
+  <Step title="Specify dimensions">
+    Always provide width and height attributes when using Next.js Image component to prevent layout shift.
+  </Step>
+</Steps>
+
+## SEO and Social Media
+
+Prismic images are extensively used for Open Graph and Twitter Card metadata:
+
+```tsx
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "logo": "https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png?auto=format,compress",
+  "image": "https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png?auto=format,compress",
+};
+```
+
+<Note>
+  Social media platforms automatically cache images. If you update an image in Prismic, the URL will change automatically, ensuring fresh content is displayed.
+</Note>
+
+## Troubleshooting
+
+### Images Not Loading
+
+If Prismic images fail to load:
+
+1. **Verify domain configuration**: Ensure `images.prismic.io` is in your `next.config.js`
+2. **Check URL format**: Confirm the URL includes the correct repository name
+3. **Test CDN connectivity**: Try accessing the image URL directly in a browser
+
+### Performance Issues
+
+<Warning>
+  Large images without optimization parameters can significantly impact page load times. Always use `?auto=format,compress` as a minimum.
+</Warning>
+
+If images load slowly:
+
+1. Add width constraints: `?auto=format,compress&w=1200`
+2. Enable lazy loading for below-fold images
+3. Use `priority` prop for above-fold images in Next.js Image component
+
+### CORS Errors
+
+Prismic's CDN is configured to allow cross-origin requests. CORS errors typically indicate:
+
+- Incorrect domain configuration in Next.js
+- Missing `remotePatterns` in `next.config.js`
+- Attempting to use images in canvas or other restricted contexts
+
+## Related Resources
+
+- [Prismic Image API Documentation](https://prismic.io/docs/image-api)
+- [Next.js Image Optimization](https://nextjs.org/docs/basic-features/image-optimization)
+- [Miniswimmer Configuration](/setup/configuration)

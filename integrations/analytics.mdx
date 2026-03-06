@@ -1,0 +1,469 @@
+---
+title: Google Analytics & Tag Manager
+description: Track user behavior and conversions with Google Analytics 4 and Google Tag Manager in Miniswimmer
+icon: chart-line
+---
+
+## Overview
+
+Miniswimmer implements dual tracking with both Google Analytics 4 (GA4) and Google Tag Manager (GTM) to provide comprehensive analytics and conversion tracking capabilities.
+
+## Google Analytics 4
+
+### Configuration
+
+GA4 is configured with a dedicated measurement ID:
+
+**Measurement ID**: `G-R7QC4J3R7H`
+
+### Implementation
+
+The GoogleAnalytics component is located at `src/components/GoogleAnalytics.tsx`:
+
+```tsx GoogleAnalytics.tsx
+'use client';
+
+import Script from 'next/script';
+
+export default function GoogleAnalytics() {
+  const measurementId = "G-R7QC4J3R7H";
+
+  if (!measurementId) {
+    return null;
+  }
+
+  return (
+    <>
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${measurementId}');
+        `}
+      </Script>
+    </>
+  );
+}
+```
+
+### Key Features
+
+- **Client-side component**: Uses `'use client'` directive for Next.js 15 App Router
+- **Next.js Script optimization**: Leverages `next/script` for optimal loading
+- **Deferred loading**: Uses `afterInteractive` strategy to avoid blocking page rendering
+- **DataLayer initialization**: Sets up the global `dataLayer` for event tracking
+
+<Note>
+  The component includes commented-out environment variable support for flexible configuration:
+  
+  ```tsx
+  // const measurementId = process?.env?.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-R7QC4J3R7H";
+  ```
+</Note>
+
+## Google Tag Manager
+
+### Configuration
+
+**GTM Container ID**: `GTM-K9KD3K78`
+
+### Implementation
+
+The GoogleTagManager component is located at `src/components/GoogleTagManager.tsx`:
+
+```tsx GoogleTagManager.tsx
+'use client';
+
+import Script from 'next/script';
+
+export default function GoogleTagManager() {
+  const gtmId = "GTM-K9KD3K78";
+
+  if (!gtmId) {
+    return null;
+  }
+
+  return (
+    <>
+      <Script id="google-tag-manager" strategy="afterInteractive">
+        {`
+          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+          })(window,document,'script','dataLayer','${gtmId}');
+        `}
+      </Script>
+    </>
+  );
+}
+```
+
+### NoScript Fallback
+
+GTM includes a fallback for users with JavaScript disabled, implemented in the root layout.
+
+## Layout Integration
+
+Both tracking systems are integrated into the root layout at `src/app/layout.tsx`:
+
+```tsx layout.tsx
+import GoogleAnalytics from '@/components/GoogleAnalytics';
+import GoogleTagManager from '@/components/GoogleTagManager';
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const gtmId = "GTM-K9KD3K78";
+
+  return (
+    <html lang={locale} suppressHydrationWarning={true}>
+      <head>
+        <GoogleTagManager />
+      </head>
+      <body className={`${inter.className} flex min-h-screen flex-col dark:bg-[#151F34]`}>
+        {gtmId && (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              height="0"
+              width="0"
+              style={{ display: 'none', visibility: 'hidden' }}
+            />
+          </noscript>
+        )}
+        <NextIntlClientProvider messages={messages}>
+          <GoogleAnalytics />
+          {children}
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### Loading Strategy
+
+<Steps>
+  <Step title="GTM loads in <head>">
+    Google Tag Manager initializes early in the document head to ensure all tags are ready before page content loads.
+  </Step>
+  
+  <Step title="NoScript fallback in <body>">
+    The GTM iframe provides tracking for users with JavaScript disabled.
+  </Step>
+  
+  <Step title="GA4 loads after interactive">
+    Google Analytics loads within the NextIntlClientProvider, ensuring it doesn't block initial page rendering.
+  </Step>
+</Steps>
+
+## Custom Event Tracking
+
+### Push Events to DataLayer
+
+Both GA4 and GTM share the same `dataLayer`. You can push custom events from any component:
+
+```tsx
+'use client';
+
+function FormSubmitButton() {
+  const handleSubmit = () => {
+    // Push event to dataLayer
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: 'form_submission',
+      form_name: 'contact_form',
+      form_location: 'homepage'
+    });
+  };
+
+  return <button onClick={handleSubmit}>Submit</button>;
+}
+```
+
+### Common Events to Track
+
+**Form Submissions**
+```tsx
+window.dataLayer.push({
+  event: 'form_submission',
+  form_type: 'contact',
+  form_id: 'contact-form'
+});
+```
+
+**Class Registration**
+```tsx
+window.dataLayer.push({
+  event: 'class_registration',
+  class_type: 'swimming_lessons',
+  location: 'miami'
+});
+```
+
+**Test Class Booking**
+```tsx
+window.dataLayer.push({
+  event: 'test_class_booked',
+  date: '2026-03-15',
+  time_slot: '14:00'
+});
+```
+
+## Environment Variables (Optional)
+
+For better configuration management, you can use environment variables:
+
+### Setup
+
+<Steps>
+  <Step title="Create environment file">
+    Add to `.env.local`:
+    
+    ```bash .env.local
+    NEXT_PUBLIC_GA_MEASUREMENT_ID=G-R7QC4J3R7H
+    NEXT_PUBLIC_GTM_ID=GTM-K9KD3K78
+    ```
+  </Step>
+  
+  <Step title="Update components">
+    Modify GoogleAnalytics.tsx:
+    
+    ```tsx
+    const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+    ```
+    
+    Modify GoogleTagManager.tsx:
+    
+    ```tsx
+    const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
+    ```
+  </Step>
+  
+  <Step title="Update layout.tsx">
+    Use environment variable:
+    
+    ```tsx
+    const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Environment variables prefixed with `NEXT_PUBLIC_` are exposed to the browser. Never use this prefix for sensitive credentials.
+</Warning>
+
+## TypeScript Support
+
+### Add DataLayer Types
+
+Create type definitions for better TypeScript support:
+
+```typescript types/analytics.ts
+declare global {
+  interface Window {
+    dataLayer: any[];
+    gtag: (...args: any[]) => void;
+  }
+}
+
+export interface AnalyticsEvent {
+  event: string;
+  [key: string]: any;
+}
+
+export function trackEvent(event: AnalyticsEvent) {
+  if (typeof window !== 'undefined') {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push(event);
+  }
+}
+```
+
+### Usage
+
+```tsx
+import { trackEvent } from '@/types/analytics';
+
+trackEvent({
+  event: 'form_submission',
+  form_name: 'contact',
+  success: true
+});
+```
+
+## Performance Considerations
+
+### Loading Strategy
+
+Both components use `strategy="afterInteractive"` to ensure analytics don't block critical rendering:
+
+```tsx
+<Script
+  src="..."
+  strategy="afterInteractive"
+/>
+```
+
+<Tip>
+  The `afterInteractive` strategy loads scripts after the page becomes interactive, balancing analytics collection with user experience.
+</Tip>
+
+### Script Optimization
+
+Next.js Script component provides automatic optimization:
+
+- **Deduplication**: Prevents loading the same script multiple times
+- **Priority handling**: Manages script loading order
+- **Automatic cleanup**: Removes scripts when components unmount
+
+## Conversion Tracking
+
+### GA4 Enhanced Conversions
+
+Set up enhanced conversions for key user actions:
+
+```tsx
+window.gtag('event', 'conversion', {
+  'send_to': 'G-R7QC4J3R7H/CONVERSION_ID',
+  'value': 1.0,
+  'currency': 'USD',
+  'transaction_id': ''
+});
+```
+
+### GTM Triggers
+
+Configure GTM triggers for:
+
+- Form submissions (contact, registration, test class)
+- Button clicks (CTA, navigation)
+- Page views (virtual pageviews for SPA navigation)
+- Scroll depth tracking
+- Video engagement
+
+## Testing
+
+### GA4 Debug Mode
+
+Enable debug mode in development:
+
+```tsx
+gtag('config', '${measurementId}', {
+  debug_mode: process.env.NODE_ENV === 'development'
+});
+```
+
+### GTM Preview Mode
+
+1. Open GTM dashboard
+2. Click "Preview" button
+3. Enter your local development URL
+4. Test tags and triggers in real-time
+
+### Verify Installation
+
+<Steps>
+  <Step title="Check browser console">
+    Look for dataLayer initialization:
+    
+    ```javascript
+    console.log(window.dataLayer);
+    ```
+  </Step>
+  
+  <Step title="Use GA4 DebugView">
+    Open GA4 dashboard → Configure → DebugView to see real-time events.
+  </Step>
+  
+  <Step title="Install browser extensions">
+    Use Google Tag Assistant or GA Debugger Chrome extensions.
+  </Step>
+</Steps>
+
+## Best Practices
+
+### 1. Consistent Event Naming
+
+Use a naming convention for events:
+
+```tsx
+// Good
+event: 'form_submission'
+event: 'class_registration'
+
+// Avoid
+event: 'formSubmit'
+event: 'ClassReg'
+```
+
+### 2. Privacy Compliance
+
+<Warning>
+  Ensure compliance with GDPR, CCPA, and other privacy regulations:
+  - Implement cookie consent
+  - Anonymize IP addresses
+  - Respect Do Not Track headers
+  - Provide opt-out mechanisms
+</Warning>
+
+### 3. Data Validation
+
+Validate event data before pushing:
+
+```tsx
+function trackEvent(event: AnalyticsEvent) {
+  if (!event.event || typeof event.event !== 'string') {
+    console.error('Invalid event format');
+    return;
+  }
+  
+  window.dataLayer?.push(event);
+}
+```
+
+### 4. Error Tracking
+
+Implement error tracking:
+
+```tsx
+window.addEventListener('error', (error) => {
+  window.dataLayer?.push({
+    event: 'javascript_error',
+    error_message: error.message,
+    error_url: error.filename,
+    error_line: error.lineno
+  });
+});
+```
+
+## Troubleshooting
+
+### Scripts Not Loading
+
+1. Check that components are client-side: `'use client'`
+2. Verify IDs are correct: `G-R7QC4J3R7H` and `GTM-K9KD3K78`
+3. Inspect Network tab for blocked requests
+
+### Events Not Firing
+
+1. Verify dataLayer exists: `console.log(window.dataLayer)`
+2. Check GTM preview mode for trigger issues
+3. Ensure events are pushed after page load
+
+### Duplicate Events
+
+- Check for multiple component instances
+- Verify cleanup in useEffect hooks
+- Review GTM tag configuration for duplicate triggers
+
+## Related Resources
+
+- [Google Analytics 4 Documentation](https://developers.google.com/analytics/devguides/collection/ga4)
+- [Google Tag Manager Guide](https://developers.google.com/tag-platform/tag-manager)
+- [Next.js Script Optimization](https://nextjs.org/docs/app/api-reference/components/script)
+- [Deployment Guide](/deployment/vercel)

@@ -1,0 +1,497 @@
+---
+title: 'Content Management with Prismic'
+description: 'Manage website content, images, and blog posts using Prismic CMS'
+icon: 'file-lines'
+---
+
+## Overview
+
+Miniswimmer uses **Prismic CMS** as a headless content management system for storing and delivering images, blog content, and other media assets. While the core platform data is managed in PostgreSQL, Prismic handles the content layer for flexibility and ease of use.
+
+## Why Prismic?
+
+Prismic provides several advantages for the Miniswimmer platform:
+
+- **Headless Architecture**: Decouples content from presentation
+- **Image Optimization**: Automatic image compression and format conversion
+- **CDN Delivery**: Fast global content delivery
+- **API-First**: Easy integration with Next.js
+- **Non-Technical Editing**: Marketing team can update content without developer involvement
+
+## Configuration
+
+Prismic integration is configured in the Next.js config file at `next.config.js:8`:
+
+```javascript next.config.js
+const nextConfig = {
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.prismic.io',
+        port: '',
+      },
+    ],
+    domains: ['images.prismic.io'],
+  },
+};
+```
+
+<Note>
+  The `remotePatterns` and `domains` configuration allows Next.js to optimize images from Prismic's CDN.
+</Note>
+
+## Image Management
+
+Prismic serves as the primary image host for the platform, storing images in the repository `miniswimmerchile`.
+
+### Image URL Structure
+
+Prismic images follow this pattern:
+
+```
+https://images.prismic.io/{repository}/{image-id}_{filename}.{extension}?auto=format,compress
+```
+
+Example:
+```
+https://images.prismic.io/miniswimmerchile/aA_Zv_IqRLdaBr0n_happy-child-2.png?auto=format,compress
+```
+
+### Image Optimization Parameters
+
+Prismic's image API supports automatic optimization:
+
+<Tabs>
+  <Tab title="auto=format">
+    Automatically serves images in the best format (WebP, AVIF) based on browser support:
+    
+    ```html
+    <img src="https://images.prismic.io/.../image.png?auto=format" />
+    ```
+  </Tab>
+
+  <Tab title="auto=compress">
+    Applies intelligent compression to reduce file size without visible quality loss:
+    
+    ```html
+    <img src="https://images.prismic.io/.../image.png?auto=compress" />
+    ```
+  </Tab>
+
+  <Tab title="Combined Parameters">
+    Use both for maximum optimization:
+    
+    ```html
+    <img src="https://images.prismic.io/.../image.png?auto=format,compress" />
+    ```
+  </Tab>
+</Tabs>
+
+### Using Images in Components
+
+Images from Prismic are referenced in translation files and components:
+
+```json dictionary/en.json
+{
+  "homepage": {
+    "features_with_image_section": {
+      "items": [
+        {
+          "img": "https://images.prismic.io/miniswimmerchile/aA_Zv_IqRLdaBr0n_happy-child-2.png?auto=format,compress"
+        }
+      ]
+    }
+  }
+}
+```
+
+In React components:
+
+```tsx
+import Image from 'next/image';
+import { useTranslations } from 'next-intl';
+
+export function FeatureSection() {
+  const t = useTranslations('homepage.features_with_image_section');
+  const items = t.raw('items');
+  
+  return (
+    <div>
+      {items.map((item, index) => (
+        <Image
+          key={index}
+          src={item.img}
+          alt={item.title}
+          width={600}
+          height={400}
+          className="rounded-lg"
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+## Content Types
+
+While the codebase doesn't show explicit Prismic SDK usage, images from the CMS are used throughout the platform:
+
+### Hero Images
+
+Location pages use hero images from Prismic:
+
+```json dictionary/en.json
+{
+  "homepage": {
+    "hero_section": {
+      "image": "/images/hero/header-2.png"
+    }
+  }
+}
+```
+
+### Social Media Images
+
+Open Graph and Twitter cards reference Prismic images:
+
+```typescript
+openGraph: {
+  images: [
+    {
+      url: "https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png?auto=format,compress",
+      width: 1200,
+      height: 630,
+    }
+  ],
+}
+```
+
+### Feature Section Images
+
+Content sections pull images from Prismic:
+
+```json dictionary/en.json
+{
+  "homepage": {
+    "features_section": {
+      "imagen01": "https://images.prismic.io/miniswimmerchile/aBvy6CdWJ-7kRu23_miami-dade-Aventura.png?auto=format,compress",
+      "imagen02": "https://images.prismic.io/miniswimmerchile/aBvy7SdWJ-7kRu24_miami-dade-North-Beach.png?auto=format,compress",
+      "imagen03": "https://images.prismic.io/miniswimmerchile/aBvy8CdWJ-7kRu26_miami-dade-Sunny-Isles-Beach.png?auto=format,compress"
+    }
+  }
+}
+```
+
+### Blog Post Images
+
+Blog posts include main images from Prismic:
+
+```json dictionary/en.json
+{
+  "homepage": {
+    "latest_blog_section": {
+      "posts": [
+        {
+          "mainImage": "https://images.prismic.io/miniswimmer-academy/Z-SOPHdAxsiBv82K_Screenshot2025-03-26at8.30.52PM.png?auto=format,compress?imwidth=1920"
+        }
+      ]
+    }
+  }
+}
+```
+
+## Blog Management
+
+Blog content is managed through translation files that reference Prismic images:
+
+### Blog Post Structure
+
+```json dictionary/en.json
+{
+  "latest_blog_section": {
+    "title": "Blog: Going Deeper Than Water:",
+    "subtitle": "Early Stimulation and Child Development...",
+    "posts": [
+      {
+        "title": "Baby Swimming: What It Is and Why It's Beneficial",
+        "metadata": "Picture your baby delighting in the water...",
+        "body": ["Full article content..."],
+        "mainImage": "https://images.prismic.io/miniswimmer-academy/...",
+        "url": "https://miniswimmer.academy/blog/que-es-la-matronatacion-y-que-beneficios-tiene",
+        "tags": ["baby swimming", "infant swim", "babies"]
+      }
+    ]
+  }
+}
+```
+
+### Multiple Blog Repositories
+
+The platform uses multiple Prismic repositories:
+
+- **miniswimmerchile**: Main Chilean market assets
+- **miniswimmer-academy**: Blog and educational content
+
+## Image Repositories
+
+Images are organized across repositories:
+
+### Chile Market (`miniswimmerchile`)
+
+Contains:
+- Location-specific images
+- Hero banners for Chilean cities
+- Feature section images
+- Social media preview images
+
+Example URLs:
+```
+https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png
+https://images.prismic.io/miniswimmerchile/aA_Zv_IqRLdaBr0n_happy-child-2.png
+https://images.prismic.io/miniswimmerchile/aBvy6CdWJ-7kRu23_miami-dade-Aventura.png
+```
+
+### Academy Blog (`miniswimmer-academy`)
+
+Contains:
+- Blog post featured images
+- Educational content graphics
+- Tutorial screenshots
+
+Example URLs:
+```
+https://images.prismic.io/miniswimmer-academy/Z-SOPHdAxsiBv82K_Screenshot2025-03-26at8.30.52PM.png
+https://images.prismic.io/miniswimmer-academy/Z-NjGXdAxsiBv6B5_pnl-kids.png
+```
+
+## Image Performance
+
+Prismic provides several performance benefits:
+
+<Steps>
+  <Step title="Automatic Format Selection">
+    Serves WebP or AVIF to modern browsers, JPEG to older browsers.
+  </Step>
+
+  <Step title="Responsive Images">
+    Generate multiple sizes using the `imwidth` parameter:
+    
+    ```html
+    <img src="https://images.prismic.io/.../image.png?auto=format,compress&imwidth=1920" />
+    ```
+  </Step>
+
+  <Step title="Lazy Loading">
+    Next.js Image component automatically lazy loads Prismic images:
+    
+    ```tsx
+    <Image
+      src="https://images.prismic.io/.../image.png"
+      loading="lazy"
+      alt="Description"
+    />
+    ```
+  </Step>
+
+  <Step title="CDN Caching">
+    All images are cached on Prismic's global CDN for fast delivery.
+  </Step>
+</Steps>
+
+## Content Workflow
+
+### For Marketing Team
+
+<Steps>
+  <Step title="Upload to Prismic">
+    Marketing uploads images to the appropriate Prismic repository.
+  </Step>
+
+  <Step title="Copy Image URL">
+    Copy the full Prismic image URL from the CMS.
+  </Step>
+
+  <Step title="Update Translation Files">
+    Add the image URL to the appropriate translation file:
+    
+    ```json
+    {
+      "homepage": {
+        "hero_section": {
+          "image": "https://images.prismic.io/...?auto=format,compress"
+        }
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Deploy Changes">
+    Commit and push the updated translation files.
+  </Step>
+</Steps>
+
+### For Developers
+
+<Steps>
+  <Step title="Access Translation Data">
+    Use next-intl to access image URLs:
+    
+    ```tsx
+    const t = useTranslations('homepage.hero_section');
+    const imageUrl = t('image');
+    ```
+  </Step>
+
+  <Step title="Use Next.js Image Component">
+    Wrap Prismic images in Next.js Image for optimization:
+    
+    ```tsx
+    <Image
+      src={imageUrl}
+      width={1200}
+      height={630}
+      alt="Hero image"
+    />
+    ```
+  </Step>
+
+  <Step title="Add Optimization Parameters">
+    Always include `?auto=format,compress` on Prismic URLs.
+  </Step>
+</Steps>
+
+## External Media Integration
+
+Beyond Prismic, the platform also uses:
+
+### Google User Content
+
+Testimonial images come from Google profiles:
+
+```json
+{
+  "image": "https://lh3.googleusercontent.com/a/ACg8ocLyjFwriZEGfjKtDx1G1D-39nocPGVyCEaG-8w2KHjhVOH2VQ=s100-c-rp-mo-br100"
+}
+```
+
+### Trustpilot Images
+
+Review avatars from Trustpilot:
+
+```json
+{
+  "image": "https://user-images.trustpilot.com/643ecc5a612df50012c3d633/73x73.png"
+}
+```
+
+## Next.js Image Optimization
+
+The platform uses Next.js Image component with Prismic:
+
+```typescript next.config.js
+images: {
+  remotePatterns: [
+    {
+      protocol: 'https',
+      hostname: 'lh3.googleusercontent.com',
+    },
+    {
+      protocol: 'https',
+      hostname: 'user-images.trustpilot.com',
+    },
+    {
+      protocol: 'https',
+      hostname: 'images.prismic.io',
+    },
+  ],
+}
+```
+
+<Warning>
+  Always include external image domains in `remotePatterns` to enable Next.js optimization.
+</Warning>
+
+## Best Practices
+
+### Naming Conventions
+
+Use descriptive filenames in Prismic:
+
+```
+Good: happy-child-2.png
+Bad: IMG_1234.png
+
+Good: miami-dade-Aventura.png
+Bad: screenshot.png
+```
+
+### Image Sizes
+
+<Tip>
+  Upload high-resolution source images to Prismic. The CMS will automatically generate optimized versions.
+</Tip>
+
+- **Hero images**: 1920x1080px or larger
+- **Social previews**: 1200x630px
+- **Blog featured images**: 1920x1080px
+- **Feature section images**: 800x600px
+
+### Always Use Optimization
+
+Never use raw Prismic URLs without parameters:
+
+```typescript
+// Bad
+const url = "https://images.prismic.io/miniswimmerchile/image.png";
+
+// Good
+const url = "https://images.prismic.io/miniswimmerchile/image.png?auto=format,compress";
+```
+
+### Alt Text
+
+Always provide meaningful alt text:
+
+```tsx
+<Image
+  src={prismicImageUrl}
+  alt="Happy child learning to swim at Miniswimmer Peñalolén"
+  width={600}
+  height={400}
+/>
+```
+
+## Troubleshooting
+
+### Images Not Loading
+
+Check that the domain is configured in `next.config.js`:
+
+```javascript
+images: {
+  domains: ['images.prismic.io'],
+}
+```
+
+### Slow Image Loading
+
+Ensure optimization parameters are included:
+```
+?auto=format,compress
+```
+
+### Build Errors
+
+Verify all image URLs in translation files are valid and accessible.
+
+## Future Enhancements
+
+Potential improvements to content management:
+
+- **Prismic SDK Integration**: Fetch content dynamically from Prismic API
+- **Content Previews**: Enable draft content previews before publishing
+- **Localized Content**: Store translations directly in Prismic
+- **Rich Text Editing**: Use Prismic's rich text editor for blog content
+- **Scheduled Publishing**: Schedule content releases in advance

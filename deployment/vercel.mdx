@@ -1,0 +1,498 @@
+---
+title: 'Vercel Deployment'
+description: 'Deploy Miniswimmer to Vercel with optimal configuration'
+icon: 'triangle'
+---
+
+## Why Vercel?
+
+Vercel is the recommended deployment platform for Miniswimmer because:
+
+- **Zero-Config Deployment**: Automatic detection of Next.js 15 applications
+- **Edge Network**: Global CDN for optimal performance
+- **Automatic HTTPS**: Free SSL certificates
+- **Preview Deployments**: Automatic preview URLs for every git push
+- **Environment Variables**: Secure management of secrets
+- **Build Optimization**: Automatic static and dynamic optimization
+
+<Note>
+  The production Miniswimmer site is currently hosted on Vercel at [miniswimmer.us](https://www.miniswimmer.us)
+</Note>
+
+## Prerequisites
+
+Before deploying to Vercel, ensure you have:
+
+<Steps>
+  <Step title="Vercel Account">
+    Sign up for a free account at [vercel.com](https://vercel.com)
+  </Step>
+  
+  <Step title="Git Repository">
+    Your code must be in a Git repository (GitHub, GitLab, or Bitbucket)
+  </Step>
+  
+  <Step title="Database">
+    A PostgreSQL database ready (see [Database Setup](/deployment/database))
+  </Step>
+  
+  <Step title="Environment Variables">
+    All required API keys and secrets prepared
+  </Step>
+</Steps>
+
+## Initial Deployment
+
+<Steps>
+  <Step title="Import Project">
+    1. Log in to [Vercel Dashboard](https://vercel.com/dashboard)
+    2. Click **"Add New..."** → **"Project"**
+    3. Import your Git repository
+    4. Vercel will automatically detect Next.js
+    
+    <Tip>
+      If your repository is not listed, you may need to configure Git provider access in Vercel settings.
+    </Tip>
+  </Step>
+  
+  <Step title="Configure Build Settings">
+    Vercel should auto-detect these settings:
+    
+    ```bash Framework Preset
+    Next.js
+    ```
+    
+    ```bash Build Command
+    npm run build
+    # or
+    yarn build
+    ```
+    
+    ```bash Output Directory
+    .next
+    ```
+    
+    ```bash Install Command
+    npm install --legacy-peer-deps
+    # or
+    yarn install
+    ```
+    
+    <Warning>
+      Use `--legacy-peer-deps` with npm to avoid peer dependency issues with React 19
+    </Warning>
+  </Step>
+  
+  <Step title="Set Environment Variables">
+    Add all required environment variables in the Vercel dashboard:
+    
+    **Database:**
+    ```bash
+    DATABASE_URL=postgresql://user:password@host:5432/miniswimmer
+    SHADOW_DATABASE_URL=postgresql://user:password@host:5432/miniswimmer_shadow
+    ```
+    
+    **Stripe:**
+    ```bash
+    STRIPE_PUBLISHABLE_KEY=pk_live_...
+    STRIPE_SECRET_KEY=sk_live_...
+    STRIPE_WEBHOOK_SECRET=whsec_...
+    ```
+    
+    **EmailJS:**
+    ```bash
+    NEXT_PUBLIC_EMAILJS_SERVICE_ID=service_...
+    NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=template_...
+    NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=...
+    ```
+    
+    <Accordion title="How to add environment variables in Vercel">
+      1. Go to your project settings
+      2. Navigate to **"Environment Variables"**
+      3. Add each variable with its value
+      4. Select environments: Production, Preview, Development
+      5. Click **"Save"**
+    </Accordion>
+  </Step>
+  
+  <Step title="Deploy">
+    Click **"Deploy"** and Vercel will:
+    
+    1. Clone your repository
+    2. Install dependencies
+    3. Run `npm run build`
+    4. Execute `postbuild` script (sitemap generation)
+    5. Deploy to production
+    
+    <Note>
+      First deployment typically takes 2-5 minutes. Subsequent deployments are faster.
+    </Note>
+  </Step>
+</Steps>
+
+## Post-Deployment Configuration
+
+### Custom Domain Setup
+
+<Steps>
+  <Step title="Add Domain">
+    1. Go to Project Settings → **Domains**
+    2. Enter your domain (e.g., `miniswimmer.us`)
+    3. Click **"Add"**
+  </Step>
+  
+  <Step title="Configure DNS">
+    Vercel will provide DNS records to add to your domain registrar:
+    
+    ```dns A Record
+    Type: A
+    Name: @
+    Value: 76.76.21.21
+    ```
+    
+    ```dns CNAME Record
+    Type: CNAME
+    Name: www
+    Value: cname.vercel-dns.com
+    ```
+  </Step>
+  
+  <Step title="SSL Certificate">
+    Vercel automatically provisions and renews SSL certificates via Let's Encrypt.
+    
+    <Tip>
+      SSL certificates are usually issued within 24 hours of DNS propagation.
+    </Tip>
+  </Step>
+</Steps>
+
+### Database Migrations
+
+Run Prisma migrations after deployment:
+
+<Steps>
+  <Step title="Via Vercel CLI">
+    Install Vercel CLI:
+    
+    ```bash
+    npm i -g vercel
+    ```
+    
+    Link your project:
+    
+    ```bash
+    vercel link
+    ```
+    
+    Run migrations:
+    
+    ```bash
+    vercel env pull .env.local
+    npx prisma migrate deploy
+    ```
+  </Step>
+  
+  <Step title="Via Build Script (Recommended)">
+    Add a build hook to run migrations automatically:
+    
+    Update `package.json`:
+    
+    ```json
+    {
+      "scripts": {
+        "build": "prisma generate && prisma migrate deploy && next build",
+        "postbuild": "node scripts/generate-sitemap.js"
+      }
+    }
+    ```
+    
+    <Warning>
+      This approach runs migrations on every deployment. Ensure migrations are tested before deploying.
+    </Warning>
+  </Step>
+</Steps>
+
+## Stripe Webhook Configuration
+
+Configure Stripe to send webhooks to your Vercel deployment:
+
+<Steps>
+  <Step title="Get Webhook URL">
+    Your webhook endpoint will be:
+    
+    ```
+    https://your-domain.com/api/stripe/webhook
+    ```
+  </Step>
+  
+  <Step title="Add Webhook in Stripe Dashboard">
+    1. Go to [Stripe Dashboard](https://dashboard.stripe.com/webhooks)
+    2. Click **"Add endpoint"**
+    3. Enter your webhook URL
+    4. Select events to listen for:
+       - `checkout.session.completed`
+       - `customer.subscription.created`
+       - `customer.subscription.updated`
+       - `customer.subscription.deleted`
+       - `invoice.payment_succeeded`
+       - `invoice.payment_failed`
+  </Step>
+  
+  <Step title="Update Webhook Secret">
+    Copy the webhook signing secret from Stripe and add it to Vercel:
+    
+    ```bash
+    STRIPE_WEBHOOK_SECRET=whsec_...
+    ```
+  </Step>
+</Steps>
+
+## Vercel Configuration File
+
+Create a `vercel.json` file for advanced configuration:
+
+```json vercel.json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    }
+  ]
+}
+```
+
+<Accordion title="Configuration Options Explained">
+  - **regions**: Deploy to specific regions (e.g., `iad1` for US East)
+  - **headers**: Security headers for all routes
+  - **rewrites**: URL rewrites for dynamic routes
+  - **redirects**: Permanent or temporary redirects
+</Accordion>
+
+## Image Optimization
+
+Next.js Image Optimization is automatically configured in `next.config.js`:
+
+```javascript next.config.js
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'user-images.trustpilot.com',
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.prismic.io',
+        port: '',
+      },
+    ],
+    domains: ['images.prismic.io'],
+  },
+};
+```
+
+<Tip>
+  Vercel automatically optimizes images on-demand. No additional configuration needed.
+</Tip>
+
+## Continuous Deployment
+
+Vercel automatically deploys on git push:
+
+<Steps>
+  <Step title="Production Deployments">
+    Pushes to your main/master branch trigger production deployments:
+    
+    ```bash
+    git add .
+    git commit -m "Update feature"
+    git push origin main
+    ```
+  </Step>
+  
+  <Step title="Preview Deployments">
+    Pushes to other branches create preview deployments:
+    
+    ```bash
+    git checkout -b feature/new-feature
+    git push origin feature/new-feature
+    ```
+    
+    Vercel comments on PRs with preview URLs.
+  </Step>
+  
+  <Step title="Deployment Protection">
+    Enable deployment protection in Project Settings:
+    
+    - **Preview Protection**: Password-protect preview deployments
+    - **Production Protection**: Require approval for production deploys
+  </Step>
+</Steps>
+
+## Monitoring and Analytics
+
+### Vercel Analytics
+
+Enable Web Analytics in your project dashboard:
+
+1. Go to **Analytics** tab
+2. Click **"Enable Analytics"**
+3. Add the Analytics script (Vercel does this automatically)
+
+### Performance Monitoring
+
+Vercel provides built-in performance metrics:
+
+- **Core Web Vitals**: LCP, FID, CLS
+- **Real Experience Score**: Overall performance score
+- **Function Execution**: Serverless function metrics
+
+<Tip>
+  Set up Slack or email notifications for deployment failures in Project Settings → Notifications.
+</Tip>
+
+## Vercel CLI Commands
+
+Useful commands for managing your deployment:
+
+```bash List all deployments
+vercel list
+```
+
+```bash View deployment logs
+vercel logs <deployment-url>
+```
+
+```bash Promote a deployment to production
+vercel promote <deployment-url>
+```
+
+```bash Roll back to previous deployment
+vercel rollback
+```
+
+```bash Pull environment variables
+vercel env pull .env.local
+```
+
+```bash Link local project to Vercel
+vercel link
+```
+
+## Troubleshooting
+
+Common Vercel deployment issues:
+
+<AccordionGroup>
+  <Accordion title="Build fails with peer dependency errors" icon="exclamation-triangle">
+    **Solution**: Update install command to use legacy peer deps:
+    
+    ```bash
+    npm install --legacy-peer-deps
+    ```
+    
+    Set this in Project Settings → General → Install Command.
+  </Accordion>
+  
+  <Accordion title="Environment variables not loading" icon="key">
+    **Solution**: Ensure variables are set for the correct environment:
+    
+    1. Check Project Settings → Environment Variables
+    2. Verify variables are enabled for Production/Preview/Development
+    3. Redeploy after adding new variables
+  </Accordion>
+  
+  <Accordion title="Database connection fails" icon="database">
+    **Solution**: Check your DATABASE_URL:
+    
+    - Verify connection string format
+    - Ensure database allows connections from Vercel IPs
+    - Check if connection pooling is enabled
+    - Use connection pooling for serverless (e.g., Supabase Pooler)
+  </Accordion>
+  
+  <Accordion title="Sitemap not generating" icon="sitemap">
+    **Solution**: The postbuild script should run automatically:
+    
+    ```json package.json
+    {
+      "scripts": {
+        "postbuild": "node scripts/generate-sitemap.js"
+      }
+    }
+    ```
+    
+    Check build logs to verify the script executed.
+  </Accordion>
+</AccordionGroup>
+
+For more troubleshooting help, see the [Troubleshooting Guide](/deployment/troubleshooting).
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Preview Deployments" icon="eye">
+    Test changes in preview environments before merging to production
+  </Card>
+  <Card title="Monitor Core Web Vitals" icon="chart-line">
+    Keep LCP < 2.5s, FID < 100ms, CLS < 0.1
+  </Card>
+  <Card title="Enable Edge Caching" icon="bolt">
+    Use static generation where possible for optimal performance
+  </Card>
+  <Card title="Set Up Alerts" icon="bell">
+    Configure notifications for deployment failures and errors
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Configure Database">
+    Set up your production database with proper backups and monitoring.
+    
+    → [Database Setup Guide](/deployment/database)
+  </Step>
+  
+  <Step title="Test Your Deployment">
+    Verify all features work correctly in production:
+    - User authentication
+    - Payment processing
+    - Email notifications
+    - Image loading
+  </Step>
+  
+  <Step title="Set Up Monitoring">
+    Configure error tracking and performance monitoring tools.
+  </Step>
+</Steps>

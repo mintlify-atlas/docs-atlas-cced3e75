@@ -1,0 +1,318 @@
+---
+title: 'Internationalization (i18n)'
+description: 'Learn how Miniswimmer implements multilingual support using next-intl'
+icon: 'globe'
+---
+
+## Overview
+
+Miniswimmer supports internationalization using **next-intl**, providing seamless multilingual experiences for users in English and Spanish. The platform uses cookie-based locale detection with Spanish as the default language.
+
+## Supported Locales
+
+The application currently supports two languages, configured in `src/i18n/supported-locales.ts:1`:
+
+<CodeGroup>
+```typescript src/i18n/supported-locales.ts
+export const SUPPORTED_LANGUAGES = [
+  {
+    name: 'English',
+    code: 'en',
+  },
+  {
+    name: 'Espanol',
+    code: 'es',
+  },
+];
+
+export const SUPPORTED_LOCALES = SUPPORTED_LANGUAGES.map(lang => lang.code);
+```
+</CodeGroup>
+
+<Note>
+  The default locale is set to **Spanish ('es')** to match the primary audience in Chile and Latin America.
+</Note>
+
+## Configuration Setup
+
+### Next.js Integration
+
+The i18n setup uses next-intl's plugin in `next.config.js:1`:
+
+```javascript next.config.js
+const createNextIntlPlugin = require('next-intl/plugin');
+const withNextIntl = createNextIntlPlugin();
+
+const nextConfig = {
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.prismic.io',
+      },
+    ],
+  },
+};
+
+module.exports = withNextIntl(nextConfig);
+```
+
+### Request Configuration
+
+The locale detection and message loading is handled in `src/i18n/request.ts:7`:
+
+<Steps>
+  <Step title="Detect Locale from Cookies">
+    The system reads the `locale` cookie to determine the user's language preference.
+    
+    ```typescript src/i18n/request.ts
+    const cookieStore = await cookies();
+    const requestedLocale = cookieStore.get('locale')?.value || '';
+    ```
+  </Step>
+
+  <Step title="Validate and Set Locale">
+    Validates the requested locale against supported languages, defaulting to Spanish.
+    
+    ```typescript src/i18n/request.ts
+    let locale = 'es'; // Default locale
+    
+    if (integrations.isI18nEnabled && SUPPORTED_LOCALES.includes(requestedLocale)) {
+      locale = requestedLocale;
+    }
+    ```
+  </Step>
+
+  <Step title="Load Translation Messages">
+    Uses deepmerge to combine default Spanish messages with the selected locale's translations.
+    
+    ```typescript src/i18n/request.ts
+    const defaultMessages = (await import('../../dictionary/es.json')).default;
+    const userMessages = (await import(`../../dictionary/${locale}.json`)).default;
+    
+    const messages = deepmerge(defaultMessages, userMessages, {
+      arrayMerge: (destination, source) => {
+        if (source.length === destination.length || source.length > destination.length) {
+          return source;
+        }
+        // Fill missing values from destination array
+        for (let i = 0; i < destination.length; i++) {
+          if (source[i] === undefined) {
+            source[i] = destination[i];
+          }
+        }
+        return source;
+      },
+    });
+    ```
+  </Step>
+</Steps>
+
+## Translation Files
+
+Translation dictionaries are stored in the `dictionary/` directory at the project root.
+
+### File Structure
+
+```
+dictionary/
+├── en.json          # English translations
+└── es.json          # Spanish translations (default)
+```
+
+### Translation Keys
+
+Translations are organized by page sections and components:
+
+<CodeGroup>
+```json dictionary/en.json
+{
+  "common": {
+    "account": "Account",
+    "home": "Home",
+    "welcome": "Welcome"
+  },
+  "header": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "contact": "Let's Talk",
+    "program": "Program",
+    "reagendamiento": "Reschedule"
+  },
+  "homepage": {
+    "hero_section": {
+      "title": "Learn about the <marker>Miniswimmer method</marker>",
+      "subtitle": "In our baby swim and children's swim academy...",
+      "cta": "SCHEDULE A CLASS"
+    }
+  }
+}
+```
+
+```json dictionary/es.json
+{
+  "common": {
+    "account": "Account",
+    "home": "Home",
+    "welcome": "Welcome"
+  },
+  "header": {
+    "features": "Features",
+    "pricing": "Valores",
+    "contact": "Hablemos",
+    "program": "Método",
+    "reagendamiento": "Reagendar"
+  },
+  "homepage": {
+    "hero_section": {
+      "title": "Conoce el <marker>método Miniswimmer</marker>",
+      "subtitle": "En nuestra academia de matronatación y natación...",
+      "cta": "AGENDA TU CLASE"
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Using Translations in Components
+
+### Server Components
+
+For server-side components, use the `useTranslations` hook:
+
+```tsx
+import { useTranslations } from 'next-intl';
+
+export default function Hero({ pageTraslation }) {
+  const t = useTranslations(`${pageTraslation}.hero_section`);
+  
+  return (
+    <section>
+      <h1>{t('title')}</h1>
+      <p>{t('subtitle')}</p>
+      <button>{t('cta')}</button>
+    </section>
+  );
+}
+```
+
+### Client Components
+
+Client components can also use the same hook with the `'use client'` directive:
+
+```tsx
+'use client';
+
+import { useTranslations } from 'next-intl';
+
+export default function ContactForm() {
+  const t = useTranslations('common');
+  
+  return (
+    <form>
+      <input placeholder={t('name')} />
+      <button>{t('send')}</button>
+    </form>
+  );
+}
+```
+
+## Language Switcher
+
+The platform includes a language switcher component in the header at `src/components/Header/language-switcher.tsx`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { SUPPORTED_LANGUAGES } from '@/i18n/supported-locales';
+
+export function LanguageSwitcher() {
+  const [currentLocale, setCurrentLocale] = useState('es');
+  
+  const handleLocaleChange = (locale: string) => {
+    document.cookie = `locale=${locale}; path=/; max-age=31536000`;
+    setCurrentLocale(locale);
+    window.location.reload();
+  };
+  
+  return (
+    <select value={currentLocale} onChange={(e) => handleLocaleChange(e.target.value)}>
+      {SUPPORTED_LANGUAGES.map((lang) => (
+        <option key={lang.code} value={lang.code}>
+          {lang.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+```
+
+## Integration Toggle
+
+Internationalization can be enabled or disabled via the integrations config at `integrations.config.tsx:8`:
+
+```typescript integrations.config.tsx
+const integrations = {
+  isI18nEnabled: true,  // Set to false to disable i18n
+  // ... other integrations
+};
+```
+
+<Warning>
+  Disabling i18n will cause the application to default to Spanish for all users, as it's the default locale.
+</Warning>
+
+## Best Practices
+
+<Tip>
+  **Always use translation keys** instead of hardcoded text to ensure all content is translatable.
+</Tip>
+
+- **Namespace your keys**: Organize translations by page and component (e.g., `homepage.hero_section.title`)
+- **Use the `<marker>` tag**: For highlighted text that needs special styling across languages
+- **Keep fallback logic**: The deepmerge strategy ensures missing translations fall back to Spanish defaults
+- **Test both locales**: Always verify content renders correctly in both English and Spanish
+
+## Adding a New Language
+
+<Steps>
+  <Step title="Add locale to supported languages">
+    Update `src/i18n/supported-locales.ts`:
+    
+    ```typescript
+    export const SUPPORTED_LANGUAGES = [
+      { name: 'English', code: 'en' },
+      { name: 'Espanol', code: 'es' },
+      { name: 'Português', code: 'pt' }, // New language
+    ];
+    ```
+  </Step>
+
+  <Step title="Create translation file">
+    Create `dictionary/pt.json` with all required translation keys.
+  </Step>
+
+  <Step title="Test the new locale">
+    Set the locale cookie and verify all pages render correctly:
+    
+    ```javascript
+    document.cookie = 'locale=pt; path=/; max-age=31536000';
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Missing Translation Keys
+
+If a translation key is missing, the application will use the Spanish default due to the deepmerge fallback logic in `src/i18n/request.ts:20`.
+
+### Locale Not Persisting
+
+Ensure cookies are enabled in the browser. The locale is stored in a cookie with a 1-year expiration.
+
+### Build Errors
+
+Make sure all JSON translation files are valid and contain matching key structures across locales.

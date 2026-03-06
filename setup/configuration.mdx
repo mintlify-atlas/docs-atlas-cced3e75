@@ -1,0 +1,593 @@
+---
+title: Configuration Guide
+description: Configure Next.js, Tailwind CSS, TypeScript, and integrations for the Miniswimmer platform
+---
+
+## Overview
+
+This guide covers the configuration files that control the behavior and features of the Miniswimmer platform.
+
+## Next.js Configuration
+
+The `next.config.js` file configures Next.js with internationalization support and image optimization.
+
+### Basic Configuration
+
+```javascript next.config.js
+const createNextIntlPlugin = require('next-intl/plugin');
+
+const withNextIntl = createNextIntlPlugin();
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'user-images.trustpilot.com',
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.prismic.io',
+        port: '',
+      },
+    ],
+    domains: ['images.prismic.io'],
+  },
+  async headers() {
+    return [
+      {
+        source: '/robots.txt',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'text/plain',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+module.exports = withNextIntl(nextConfig);
+```
+
+### Configuration Options
+
+<Accordion title="React Strict Mode">
+  `reactStrictMode: true` enables React's Strict Mode for the entire application, helping identify potential problems:
+  
+  - Identifies components with unsafe lifecycles
+  - Warns about legacy string ref API usage
+  - Warns about deprecated findDOMNode usage
+  - Detects unexpected side effects
+  - Detects legacy context API
+</Accordion>
+
+<Accordion title="Image Optimization">
+  The `images` configuration allows Next.js to optimize images from external domains:
+
+  ```javascript
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com', // Google user avatars
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'user-images.trustpilot.com', // Trustpilot reviews
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.prismic.io', // Prismic CMS images
+        port: '',
+      },
+    ],
+    domains: ['images.prismic.io'],
+  }
+  ```
+
+  <Warning>
+    Only add trusted domains to prevent unauthorized image optimization requests.
+  </Warning>
+</Accordion>
+
+<Accordion title="Custom Headers">
+  Custom headers are configured for specific routes:
+
+  ```javascript
+  async headers() {
+    return [
+      {
+        source: '/robots.txt',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'text/plain',
+          },
+        ],
+      },
+    ];
+  }
+  ```
+</Accordion>
+
+<Accordion title="next-intl Integration">
+  The configuration wraps the Next.js config with `next-intl` for internationalization:
+
+  ```javascript
+  const createNextIntlPlugin = require('next-intl/plugin');
+  const withNextIntl = createNextIntlPlugin();
+  module.exports = withNextIntl(nextConfig);
+  ```
+
+  This enables:
+  - Automatic locale detection
+  - Cookie-based locale persistence
+  - Translation file loading
+  - Locale-aware routing
+</Accordion>
+
+## Tailwind CSS Configuration
+
+The `tailwind.config.ts` file extends Tailwind CSS with custom design tokens for the swimming academy brand.
+
+### Core Configuration
+
+```typescript tailwind.config.ts
+import type { Config } from 'tailwindcss';
+import colors from 'tailwindcss/colors';
+const defaultTheme = require('tailwindcss/defaultTheme');
+
+const config: Config = {
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  darkMode: 'class',
+  theme: {
+    fontFamily: {
+      satoshi: ['Satoshi', 'sans-serif'],
+      inter: ['Inter', 'sans-serif'],
+      sans: ['"Satoshi"', ...defaultTheme.fontFamily.sans],
+    },
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: '1rem',
+        sm: '2rem',
+        xl: '0',
+      },
+    },
+    screens: {
+      xsm: '375px',
+      lsm: '425px',
+      '3xl': '2000px',
+      ...defaultTheme.screens,
+    },
+    extend: {
+      // Extended theme configuration
+    },
+  },
+  plugins: [],
+};
+export default config;
+```
+
+### Custom Colors
+
+```typescript
+colors: {
+  current: 'currentColor',
+  transparent: 'transparent',
+  white: '#FFFFFF',
+  black: '#0E172B',
+  body: '#64748B',
+  stroke: {
+    DEFAULT: '#E8E8E8',
+    dark: '#394152',
+  },
+  primary: {
+    DEFAULT: '#AE5EAB',  // Brand purple
+    dark: '#AE5EAB',
+  },
+  dark: {
+    DEFAULT: '#1C274C',
+    2: '#495270',
+    3: '#606882',
+    4: '#8D93A5',
+    5: '#BBBEC9',
+  },
+  gray: {
+    DEFAULT: '#F3F5F6',
+    1: '#F9FAFB',
+    2: '#F3F4F6',
+    3: '#E5E7EB',
+    4: '#D1D5DB',
+    5: '#9CA3AF',
+    6: '#6B7280',
+    7: '#374151',
+    dark: '#272E40',
+  },
+  red: {
+    ...colors.red,
+    DEFAULT: '#F23030',
+    light: '#F56060',
+    'light-5': '#FEEBEB',
+    'light-6': '#FEF3F3',
+  },
+  green: {
+    ...colors.green,
+    DEFAULT: '#00BC55',
+  },
+}
+```
+
+<Tip>
+  The primary brand color `#AE5EAB` is used throughout the platform for buttons, links, and accents.
+</Tip>
+
+### Custom Typography
+
+```typescript
+fontSize: {
+  'heading-1': ['60px', '72px'],
+  'heading-2': ['48px', '58px'],
+  'heading-3': ['40px', '48px'],
+  'heading-4': ['35px', '45px'],
+  'heading-5': ['28px', '40px'],
+  'heading-6': ['24px', '30px'],
+  'custom-2xl': ['22px', '30px'],
+  'custom-3xl': ['32px', '40px'],
+}
+```
+
+Usage example:
+```tsx
+<h1 className="text-heading-1 font-bold">Swimming Academy</h1>
+```
+
+### Custom Spacing
+
+The platform includes an extensive spacing scale from `4.5` to `230`:
+
+```typescript
+spacing: {
+  4.5: '1.125rem',
+  5.5: '1.375rem',
+  // ... many more custom spacing values
+  230: '57.5rem',
+}
+```
+
+### Breakpoints
+
+Custom breakpoints extend the default Tailwind breakpoints:
+
+```typescript
+screens: {
+  xsm: '375px',    // Extra small mobile
+  lsm: '425px',    // Large small mobile
+  '3xl': '2000px', // Extra large desktop
+  ...defaultTheme.screens, // sm, md, lg, xl, 2xl
+}
+```
+
+### Custom Box Shadows
+
+```typescript
+boxShadow: {
+  1: '0px 1px 2px 0px rgba(84, 87, 118, 0.10)',
+  error: '0px 12px 34px 0px rgba(13, 10, 44, 0.05)',
+  input: 'inset 0 0 0 2px #573CFF',
+  dropdown: '0px 4px 12px 0px rgba(15, 23, 42, 0.10)',
+  darkdropdown: '0px 4px 12px 0px rgba(255, 255, 255, 0.05)',
+  features: '0px 8px 20px 0px rgba(113, 116, 152, 0.05)',
+  testimonial: '0px 8px 10px -6px rgba(15, 23, 42, 0.06)',
+  'testimonial-2': '0px 15px 50px -6px rgba(15, 23, 42, 0.08)',
+}
+```
+
+### Dark Mode
+
+Dark mode is enabled using the `class` strategy:
+
+```typescript
+darkMode: 'class'
+```
+
+Apply dark mode styles:
+```tsx
+<div className="bg-white dark:bg-black text-black dark:text-white">
+  Content adapts to theme
+</div>
+```
+
+## TypeScript Configuration
+
+The `tsconfig.json` file configures TypeScript compiler options.
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "-next/types/**/*.ts",
+    "next-env.d.ts",
+    "scripts/generate-sitemap.js",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
+```
+
+### Key Options
+
+<Accordion title="Path Aliases">
+  Import from `src/` using the `@` alias:
+
+  ```typescript
+  // Instead of:
+  import { Component } from '../../../components/Component';
+
+  // Use:
+  import { Component } from '@/components/Component';
+  ```
+</Accordion>
+
+<Accordion title="Strict Mode">
+  `"strict": true` enables all strict type-checking options:
+  - `strictNullChecks`
+  - `strictFunctionTypes`
+  - `strictBindCallApply`
+  - `strictPropertyInitialization`
+  - `noImplicitThis`
+  - `alwaysStrict`
+</Accordion>
+
+<Accordion title="Module Resolution">
+  `"moduleResolution": "bundler"` uses the modern bundler resolution strategy optimized for tools like Webpack and Vite.
+</Accordion>
+
+## Integrations Configuration
+
+The `integrations.config.tsx` file controls which features are enabled.
+
+```tsx integrations.config.tsx
+const integrations = {
+  isSanityEnabled: false,
+  isOpenAIEnabled: false,
+  isAlgoliaEnabled: false,
+  isMailchimpEnabled: false,
+  isAuthEnabled: true,
+  isPaymentsEnabled: false,
+  isI18nEnabled: true,
+};
+```
+
+### Integration Flags
+
+<Accordion title="Authentication (isAuthEnabled)">
+  Controls user authentication features:
+  - User registration and login
+  - Session management
+  - Password reset functionality
+  - OAuth providers (Google, etc.)
+
+  **Currently enabled** for the platform.
+</Accordion>
+
+<Accordion title="Internationalization (isI18nEnabled)">
+  Enables multi-language support:
+  - English and Spanish locales
+  - Cookie-based locale persistence
+  - Automatic translation loading
+  - Language switcher in header
+
+  **Currently enabled** with English and Spanish support.
+</Accordion>
+
+<Accordion title="Algolia Search (isAlgoliaEnabled)">
+  Enables search functionality powered by Algolia:
+  - Global site search
+  - Instant search results
+  - Faceted search
+
+  **Currently disabled**. To enable:
+  1. Set `isAlgoliaEnabled: true`
+  2. Configure Algolia environment variables
+  3. Index your content
+</Accordion>
+
+<Accordion title="Payments (isPaymentsEnabled)">
+  Enables Stripe payment processing:
+  - Subscription management
+  - Payment processing
+  - Customer portal
+
+  **Currently disabled**. Enable for class bookings and memberships.
+</Accordion>
+
+<Accordion title="Other Integrations">
+  - **Sanity CMS** (`isSanityEnabled`): Headless CMS (currently disabled, using Prismic instead)
+  - **OpenAI** (`isOpenAIEnabled`): AI features (currently disabled)
+  - **Mailchimp** (`isMailchimpEnabled`): Email marketing (currently disabled, using EmailJS instead)
+</Accordion>
+
+### Using Integration Flags
+
+Import and check integration flags in your components:
+
+```tsx
+import { integrations } from '@/integrations.config';
+
+export default function SearchButton() {
+  if (!integrations.isAlgoliaEnabled) {
+    return null; // Hide search if disabled
+  }
+
+  return <button>Search</button>;
+}
+```
+
+## Internationalization Setup
+
+### Supported Locales
+
+```typescript src/i18n/supported-locales.ts
+export const SUPPORTED_LANGUAGES = [
+  {
+    name: 'English',
+    code: 'en',
+  },
+  {
+    name: 'Espanol',
+    code: 'es',
+  },
+];
+
+export const SUPPORTED_LOCALES = SUPPORTED_LANGUAGES.map(lang => lang.code);
+```
+
+### Request Configuration
+
+```typescript src/i18n/request.ts
+import deepmerge from 'deepmerge';
+import { getRequestConfig } from 'next-intl/server';
+import { cookies } from 'next/headers';
+import { integrations } from '../../integrations.config';
+import { SUPPORTED_LOCALES } from './supported-locales';
+
+export default getRequestConfig(async () => {
+  const cookieStore = await cookies();
+  const requestedLocale = cookieStore.get('locale')?.value || '';
+
+  let locale = 'es'; // Default locale: Spanish
+
+  if (integrations.isI18nEnabled && SUPPORTED_LOCALES.includes(requestedLocale)) {
+    locale = requestedLocale;
+  }
+
+  const defaultMessages = (await import('../../dictionary/es.json')).default;
+  const userMessages = (await import(`../../dictionary/${locale}.json`)).default;
+
+  const messages = deepmerge(defaultMessages, userMessages, {
+    arrayMerge: (destination, source) => {
+      if (source.length === destination.length || source.length > destination.length) {
+        return source;
+      }
+
+      // Fill missing values with defaults
+      for (let i = 0; i < destination.length; i++) {
+        if (source[i] === undefined) {
+          source[i] = destination[i];
+        }
+      }
+
+      return source;
+    },
+  });
+
+  return {
+    locale,
+    messages: messages as any,
+  };
+});
+```
+
+<Note>
+  The platform uses **Spanish (es)** as the default locale and merges translation files to ensure complete coverage.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Version Control">
+    Commit all configuration files to version control:
+    - `next.config.js`
+    - `tailwind.config.ts`
+    - `tsconfig.json`
+    - `integrations.config.tsx`
+
+    Never commit `.env` files.
+  </Step>
+
+  <Step title="Environment-Specific Config">
+    Use environment variables for values that change between environments:
+
+    ```javascript next.config.js
+    const nextConfig = {
+      // Use env vars for dynamic config
+      basePath: process.env.BASE_PATH || '',
+    };
+    ```
+  </Step>
+
+  <Step title="Image Domains">
+    Only add trusted image domains to prevent abuse:
+
+    ```javascript
+    images: {
+      remotePatterns: [
+        // Only add domains you control or trust
+      ],
+    }
+    ```
+  </Step>
+
+  <Step title="TypeScript Strict Mode">
+    Keep TypeScript strict mode enabled for better type safety and fewer runtime errors.
+  </Step>
+
+  <Step title="Integration Flags">
+    Use integration flags to progressively enable features:
+
+    ```tsx
+    // Enable in development
+    isAlgoliaEnabled: process.env.NODE_ENV === 'development',
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+- Configure [Environment Variables](/setup/environment-variables) for all services
+- Set up Prismic CMS for content management
+- Configure EmailJS for contact forms
+- Enable and configure optional integrations (Algolia, Stripe, etc.)
+- Customize theme colors and typography in `tailwind.config.ts`

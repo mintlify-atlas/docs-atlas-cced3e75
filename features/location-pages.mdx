@@ -1,0 +1,468 @@
+---
+title: 'Location-Specific Pages'
+description: 'Dynamic city and region pages for different swimming school locations'
+icon: 'map-location-dot'
+---
+
+## Overview
+
+Miniswimmer serves multiple geographic locations across Chile and the United States, with dedicated landing pages for each city and region. These location-specific pages are optimized for local SEO and provide customized content for different markets.
+
+## Supported Locations
+
+### Chile Locations
+
+The platform supports multiple cities in Chile:
+
+- **Peñalolén** (`/clases-natacion-penalolen`)
+- **Viña del Mar** (`/clases-natacion-vina-del-mar`)
+- **Maintencillo** (`/clases-natacion-maintencillo`)
+- **La Reina**
+- **Nuñoa**
+- **Vitacura**
+- **Lo Barnechea**
+- **Rancagua**
+- **Valparaíso**
+- **Chillán**
+
+### United States Locations
+
+In the US, Miniswimmer operates in:
+
+- **Miami-Dade County** (`/swimming-lessons-in-miami-dade`)
+- **Broward County** (`/swimming-lessons-in-broward`)
+
+## Page Architecture
+
+Each location page follows a consistent structure defined in the `src/app/(site)/` directory.
+
+### Example: Peñalolén Page
+
+Let's examine the Peñalolén location page at `src/app/(site)/clases-natacion-penalolen/page.tsx:1`:
+
+<CodeGroup>
+```typescript src/app/(site)/clases-natacion-penalolen/page.tsx
+import { Metadata } from "next";
+import SchemaMarkup from "@/components/Common/SchemaMarkup";
+import LessonsInPenalolen from "@/components/LessonsInPenalolen";
+
+export const metadata: Metadata = {
+  title: "Academia de Natación para Bebés, Niños, Embarazadas en Peñalolen",
+  description: `Clases de Natación Exclusivas en Reina y Peñalolen, Las Pircas y Alto Macul. 💧 Método Miniswimmer: Natación + PNL y Coaching. Lecciones personalizadas para bebés y niños en Álvaro Casanova, Lo Cañas y El Parral. ¡Aprendizaje real y seguro! ¡Inscríbelos hoy!`,
+  alternates: {
+    canonical: 'https://www.miniswimmer.cl/clases-natacion-vina-del-mar',
+    languages: {
+      'en-US': 'https://www.miniswimmer.cl/clases-natacion-vina-del-mar',
+      'es': 'https://www.miniswimmer.cl/clases-natacion-vina-del-mar',
+    },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  openGraph: {
+    type: "website",
+    url: 'https://www.miniswimmer.cl/clases-natacion-vina-del-mar',
+    title: `Academia de Natación para Bebés, Niños, Embarazadas en Peñalolen`,
+    description: `Clases de Natación Exclusivas en Reina y Peñalolen...`,
+    images: [
+      {
+        url: "https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png?auto=format,compress",
+        width: 1200,
+        height: 630,
+        alt: "Academia de Natación para Bebés, Niños, Embarazadas en Peñalolen"
+      }
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@miniswimmer_edu",
+    creator: "@miniswimmer_edu",
+    // ... similar properties
+  },
+};
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Miniswimmer",
+  "url": "https://www.miniswimmer.cl/clases-natacion-vina-del-mar",
+  "logo": "https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png",
+  "description": "Clases de Natación Exclusivas...",
+  "sameAs": [
+    "https://www.facebook.com/miniswimmer.academy",
+    "https://www.instagram.com/miniswimmer.chile", 
+    "https://www.instagram.com/miniswimmer.cl/",
+    "https://www.linkedin.com/company/105056316"
+  ]
+};
+
+export default function LessonsInPenalolenPage() {
+  return (
+    <>
+      <SchemaMarkup type="Organization" data={organizationSchema} />
+      <main>
+        <LessonsInPenalolen />
+      </main>
+    </>
+  );
+}
+```
+</CodeGroup>
+
+## Component Structure
+
+Location pages use reusable components from `src/components/`. For example, the Peñalolén component (`src/components/LessonsInPenalolen/index.tsx:10`):
+
+```tsx src/components/LessonsInPenalolen/index.tsx
+import Hero from "../Common/Hero";
+import Testimonials from "../Common/Testimonials";
+import WhatsappContact from "../Common/WhatsappContact";
+import Counter from "../Common/Counter";
+import Features from "../Common/Features";
+import TestClassContact from "../Common/TestClassContact";
+
+const PAGE: string = "lessonsInPenalolenpage";
+
+const LessonsInPenalolen = () => {
+  return (
+    <> 
+      <Hero pageTraslation={PAGE} />
+      
+      <div className='mt-20 relative z-1 mx-auto w-full max-w-[1170px] px-4 sm:px-8 xl:px-0'>
+        <section className='mb-12'>
+          <h2 className='mb-4.5 font-satoshi text-3xl font-bold text-slate-700'>
+            ¡Agenda tu Clase de Prueba y Descubre el Método Miniswimmer!
+          </h2>
+          <p className='mb-4.5 font-satoshi text-lg text-slate-700'>
+            ¿Quieres que tu hijo aprenda a nadar con confianza, autonomía y 
+            disfrutando cada momento? Te invitamos a vivir la experiencia 
+            <strong>Miniswimmer</strong> con una clase de prueba...
+          </p>
+        </section>
+      </div>
+      
+      <TestClassContact pageTraslation={PAGE} />
+      <Features pageTraslation={PAGE} />
+      <WhatsappContact pageTraslation={PAGE} />
+      <Counter pageTraslation={PAGE} />
+    </>
+  );
+};
+
+export default LessonsInPenalolen;
+```
+
+## Miami-Dade Location Page
+
+The US market uses English content. Example from `src/app/(site)/swimming-lessons-in-miami-dade/page.tsx:7`:
+
+<CodeGroup>
+```typescript src/app/(site)/swimming-lessons-in-miami-dade/page.tsx
+export const metadata: Metadata = {
+  title: "Enroll Your Child in Swimming in Miami-Dade!",
+  description: `Find our convenient locations for personalized in-home swimming lessons. We help babies and children of all levels improve their technique, build endurance, and gain confidence in the water. We serve the cities of Aventura, North Bay Village, North Miami, North Miami Beach, Sunny Isles Beach, Golden Beach in Miami-Dade County.`,
+  alternates: {
+    canonical: 'https://www.miniswimmer.us/swimming-lessons-in-miami-dade',
+    languages: {
+      'en-US': 'https://www.miniswimmer.us/swimming-lessons-in-miami-dade',
+      'es': 'https://www.miniswimmer.us/swimming-lessons-in-miami-dade',
+    },
+  },
+  openGraph: {
+    type: "website",
+    url: 'https://www.miniswimmer.us/swimming-lessons-in-miami-dade',
+    title: `Enroll Your Child in Swimming in Miami-Dade!`,
+    images: [
+      {
+        url: "https://images.prismic.io/miniswimmerchile/aBuatCdWJ-7kRuIZ_SOCIAL-MEDIAv2.png",
+        width: 1200,
+        height: 630,
+      }
+    ],
+  },
+};
+```
+</CodeGroup>
+
+## Translation Integration
+
+Location-specific content is stored in the translation files. From `dictionary/en.json:565`:
+
+```json dictionary/en.json
+{
+  "lessonMiamipage": {
+    "hero_section": {
+      "title": "In-Home Swimming Lessons in <marker>Miami Dade</marker>",
+      "subtitle": "Find our convenient locations for personalized in-home swimming lessons. We help babies and children of all levels improve their technique, build endurance, and gain confidence in the water.",
+      "cta": "SCHEDULE A CLASS IN MIAMI DADE",
+      "url": "https://wa.me/13053328555?text=would%20like%20to%20schedule%20a%20swimming%20lesson%20for%20Miami%20Dade"
+    },
+    "features_section": {
+      "title": "Enroll Your Child in Swimming in Miami-Dade!",
+      "subtitle": "Miami-Dade Parents: Enroll your children in our expert swimming lessons throughout all the cities of Miami-Dade. We develop confidence and essential aquatic skills in a safe and fun environment.",
+      "featuresTop": [
+        {
+          "title": "Aventura",
+          "description": "Aventura is pure water and fun! Give your little ones the joy and safety of swimming with Miniswimmer. Our personalized classes will teach them vital skills while they enjoy every splash."
+        },
+        {
+          "title": "North Bay Village",
+          "description": "Discover the aquatic magic in North Bay Village with Miniswimmer! Give your children the confidence and skills to enjoy the water safely and have fun."
+        },
+        {
+          "title": "North Miami",
+          "description": "In North Miami, water is part of our life! Boost the development and safety of your little ones with Miniswimmer's personalized classes."
+        }
+      ]
+    }
+  }
+}
+```
+
+## Miami-Dade Sub-locations
+
+The Miami-Dade page includes information for multiple cities within the county:
+
+<Tabs>
+  <Tab title="North County">
+    - **Aventura**: Personalized classes for water safety and fun
+    - **North Bay Village**: Aquatic confidence building
+    - **North Miami**: Development-focused swimming lessons
+    - **North Miami Beach**: Exciting and safe learning experiences
+  </Tab>
+
+  <Tab title="Coastal">
+    - **Sunny Isles Beach**: Beach-focused swimming skills
+    - **Golden Beach**: Exclusive aquatic adventure programs
+    - **Bal Harbour**: Confidence and well-being programs
+    - **Bay Harbor**: Expert instructors in fun settings
+  </Tab>
+
+  <Tab title="Inland">
+    - **Ojus**: Fun and learning combined
+    - **Miami Gardens**: Confidence and technique development
+  </Tab>
+</Tabs>
+
+## SEO Optimization
+
+Each location page includes comprehensive SEO metadata:
+
+<Steps>
+  <Step title="Title Tags">
+    Location-specific titles optimized for local search:
+    
+    ```typescript
+    title: "Academia de Natación para Bebés, Niños, Embarazadas en Peñalolen"
+    ```
+  </Step>
+
+  <Step title="Meta Descriptions">
+    Detailed descriptions with keywords and location information.
+  </Step>
+
+  <Step title="Canonical URLs">
+    Prevent duplicate content issues:
+    
+    ```typescript
+    alternates: {
+      canonical: 'https://www.miniswimmer.cl/clases-natacion-penalolen',
+    }
+    ```
+  </Step>
+
+  <Step title="Open Graph Tags">
+    Optimized for social media sharing with location-specific images.
+  </Step>
+
+  <Step title="Schema Markup">
+    Structured data for search engines using Schema.org Organization type.
+  </Step>
+</Steps>
+
+## Schema Markup Implementation
+
+All location pages include structured data via the SchemaMarkup component:
+
+```typescript
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Miniswimmer",
+  "url": "https://www.miniswimmer.cl/clases-natacion-penalolen",
+  "logo": "https://images.prismic.io/miniswimmerchile/...",
+  "description": "Clases de Natación Exclusivas en Reina y Peñalolen...",
+  "sameAs": [
+    "https://www.facebook.com/miniswimmer.academy",
+    "https://www.instagram.com/miniswimmer.chile",
+    "https://www.linkedin.com/company/105056316"
+  ]
+};
+```
+
+## Common Page Components
+
+Location pages typically include:
+
+### Hero Section
+
+Displays location name, description, and CTA button:
+
+```tsx
+<Hero pageTraslation="lessonsInPenalolenpage" />
+```
+
+### Features Grid
+
+Showcases swimming programs and locations:
+
+```tsx
+<Features pageTraslation="lessonsInPenalolenpage" />
+```
+
+### WhatsApp Contact
+
+Provides direct contact with location-specific phone numbers:
+
+```tsx
+<WhatsappContact pageTraslation="lessonsInPenalolenpage" />
+```
+
+### Testimonials
+
+Displays reviews from families at that location:
+
+```tsx
+<Testimonials pageTraslation="lessonsInPenalolenpage" />
+```
+
+### Counter Section
+
+Shows statistics (families served, happy children, etc.):
+
+```tsx
+<Counter pageTraslation="lessonsInPenalolenpage" />
+```
+
+### Test Class Contact Form
+
+Allows booking trial classes for the specific location:
+
+```tsx
+<TestClassContact pageTraslation="lessonsInPenalolenpage" />
+```
+
+## URL Structure
+
+### Chile (Spanish)
+
+Format: `/clases-natacion-{city-name}`
+
+Examples:
+- `/clases-natacion-penalolen`
+- `/clases-natacion-vina-del-mar`
+- `/clases-natacion-maintencillo`
+
+### United States (English)
+
+Format: `/swimming-lessons-in-{region-name}`
+
+Examples:
+- `/swimming-lessons-in-miami-dade`
+- `/swimming-lessons-in-broward`
+
+## Multi-Domain Strategy
+
+Miniswimmer uses different domains for different markets:
+
+- **Chile**: `www.miniswimmer.cl`
+- **United States**: `www.miniswimmer.us`
+- **International**: `miniswimmer.academy`
+
+## Images and Assets
+
+Location pages use Prismic CMS for image management:
+
+```typescript
+images: [
+  {
+    url: "https://images.prismic.io/miniswimmerchile/aLTn32GNHVfTOeOK_SOCIAL-MEDIA-Vina-del-mar.png?auto=format,compress",
+    width: 1200,
+    height: 630,
+    alt: "Academia de Natación para Bebés, Niños, Embarazadas en Peñalolen"
+  }
+]
+```
+
+<Note>
+  The `?auto=format,compress` parameter optimizes images automatically through Prismic's image API.
+</Note>
+
+## Creating a New Location Page
+
+<Steps>
+  <Step title="Create Page File">
+    Add a new file in `src/app/(site)/`:
+    
+    ```bash
+    mkdir src/app/(site)/clases-natacion-new-city
+    touch src/app/(site)/clases-natacion-new-city/page.tsx
+    ```
+  </Step>
+
+  <Step title="Add Metadata">
+    Define SEO metadata, Open Graph tags, and schema markup.
+  </Step>
+
+  <Step title="Create Component">
+    Build the location component in `src/components/`:
+    
+    ```bash
+    mkdir src/components/LessonsInNewCity
+    touch src/components/LessonsInNewCity/index.tsx
+    ```
+  </Step>
+
+  <Step title="Add Translations">
+    Add location-specific content to `dictionary/es.json` and `dictionary/en.json`.
+  </Step>
+
+  <Step title="Configure Routes">
+    Ensure Next.js routing picks up the new page (automatic with file-based routing).
+  </Step>
+
+  <Step title="Add to Navigation">
+    Update header navigation if needed in `src/components/Header/`.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<Tip>
+  **Localize everything**: Phone numbers, addresses, testimonials, and images should all be location-specific for maximum relevance.
+</Tip>
+
+- **Use local keywords**: Include city names, neighborhoods, and region-specific terms
+- **Unique content per location**: Avoid duplicating content across pages
+- **Local phone numbers**: Use region-appropriate WhatsApp numbers
+- **Location-specific testimonials**: Show reviews from families in that area
+- **Local landmarks**: Reference nearby areas, neighborhoods, or landmarks
+- **Optimize for mobile**: Many parents search for swim lessons on mobile devices
+- **Fast loading**: Use Prismic's image optimization for quick page loads
+
+## Analytics and Tracking
+
+Track performance by location:
+
+```typescript
+// Track page views by location
+gtag('config', 'GA_MEASUREMENT_ID', {
+  page_path: '/clases-natacion-penalolen',
+  page_title: 'Clases Natación Peñalolen',
+});
+```

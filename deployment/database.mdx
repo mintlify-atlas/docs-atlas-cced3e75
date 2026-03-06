@@ -1,0 +1,746 @@
+---
+title: 'Database Setup'
+description: 'Configure PostgreSQL and run Prisma migrations for Miniswimmer'
+icon: 'database'
+---
+
+## Overview
+
+Miniswimmer uses **PostgreSQL** as its database with **Prisma** as the ORM layer. This guide covers database setup, migrations, and production configuration.
+
+## Database Requirements
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL" icon="elephant">
+    Version 12 or higher
+  </Card>
+  <Card title="Connection Pooling" icon="arrows-spin">
+    Required for serverless environments
+  </Card>
+  <Card title="SSL Support" icon="lock">
+    Recommended for production
+  </Card>
+  <Card title="Backup Strategy" icon="clock-rotate-left">
+    Automated daily backups
+  </Card>
+</CardGroup>
+
+## Database Schema
+
+The Miniswimmer platform uses the following data models:
+
+### Core Models
+
+```prisma prisma/schema.prisma
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+```
+
+<Accordion title="Why Shadow Database?">
+  The `shadowDatabaseUrl` is required when using cloud database providers that don't support creating temporary databases (like Heroku). Prisma uses the shadow database to:
+  
+  - Detect schema drift
+  - Generate migrations safely
+  - Validate migration consistency
+  
+  [Learn more in Prisma docs](https://pris.ly/d/migrate-shadow)
+</Accordion>
+
+### Authentication Models
+
+```prisma User and Account Models
+model User {
+  id                     String    @id @default(cuid())
+  name                   String?
+  email                  String?   @unique
+  emailVerified          DateTime?
+  image                  String?
+  password               String?
+  passwordResetToken     String?   @unique
+  passwordResetTokenExp  DateTime?
+  role                   String?   @default("USER")
+  stripeCustomerId       String?   @unique @map(name: "stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map(name: "stripe_subscription_id")
+  stripePriceId          String?   @map(name: "stripe_price_id")
+  stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
+  createdAt              DateTime  @default(now())
+  accounts               Account[]
+  sessions               Session[]
+  apiKeys                ApiKey[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+}
+```
+
+<Note>
+  The `User` model includes Stripe integration fields for subscription management.
+</Note>
+
+### Session Management
+
+```prisma Session Models
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+}
+```
+
+### API Key Management
+
+```prisma API Keys
+model ApiKey {
+  id        String   @id @default(cuid())
+  key       String
+  name      String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+## Database Provider Options
+
+### Option 1: Vercel Postgres (Recommended)
+
+<Steps>
+  <Step title="Create Database">
+    1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+    2. Navigate to **Storage** tab
+    3. Click **Create Database**
+    4. Select **Postgres**
+    5. Choose region closest to your users
+  </Step>
+  
+  <Step title="Connect to Project">
+    Vercel automatically adds these environment variables:
+    
+    ```bash
+    POSTGRES_URL="postgres://..."
+    POSTGRES_PRISMA_URL="postgres://..."
+    POSTGRES_URL_NON_POOLING="postgres://..."
+    ```
+    
+    Update your `.env`:
+    
+    ```bash
+    DATABASE_URL=$POSTGRES_PRISMA_URL
+    SHADOW_DATABASE_URL=$POSTGRES_URL_NON_POOLING
+    ```
+  </Step>
+  
+  <Step title="Enable Connection Pooling">
+    Vercel Postgres includes built-in connection pooling via PgBouncer.
+    
+    <Tip>
+      Use `POSTGRES_PRISMA_URL` for Prisma - it's optimized for serverless with connection pooling.
+    </Tip>
+  </Step>
+</Steps>
+
+### Option 2: Supabase
+
+<Steps>
+  <Step title="Create Project">
+    1. Sign up at [supabase.com](https://supabase.com)
+    2. Create a new project
+    3. Choose region and set password
+  </Step>
+  
+  <Step title="Get Connection Strings">
+    Go to Project Settings → Database:
+    
+    ```bash Direct Connection
+    DATABASE_URL="postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres"
+    ```
+    
+    ```bash Connection Pooling (Recommended)
+    DATABASE_URL="postgresql://postgres:[password]@db.[project].supabase.co:6543/postgres?pgbouncer=true"
+    ```
+    
+    ```bash Shadow Database
+    SHADOW_DATABASE_URL="postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres"
+    ```
+  </Step>
+  
+  <Step title="Configure Pooling Mode">
+    For Prisma with serverless, use **Transaction mode**:
+    
+    Add `?pgbouncer=true&connection_limit=1` to your connection string.
+  </Step>
+</Steps>
+
+### Option 3: Railway
+
+<Steps>
+  <Step title="Create Database">
+    1. Go to [railway.app](https://railway.app)
+    2. Create new project
+    3. Add **PostgreSQL** service
+  </Step>
+  
+  <Step title="Get Connection String">
+    Railway provides the connection string in the service variables:
+    
+    ```bash
+    DATABASE_URL=$DATABASE_URL
+    ```
+    
+    Create shadow database:
+    
+    ```bash
+    SHADOW_DATABASE_URL="postgresql://user:pass@host:port/miniswimmer_shadow"
+    ```
+  </Step>
+</Steps>
+
+### Option 4: AWS RDS
+
+<Steps>
+  <Step title="Create RDS Instance">
+    1. Go to AWS RDS Console
+    2. Click **Create database**
+    3. Choose **PostgreSQL**
+    4. Select instance size (t3.micro for testing)
+    5. Configure VPC and security groups
+  </Step>
+  
+  <Step title="Configure Connection">
+    ```bash
+    DATABASE_URL="postgresql://username:password@endpoint.region.rds.amazonaws.com:5432/miniswimmer?schema=public&connection_limit=5"
+    ```
+    
+    <Warning>
+      Ensure security group allows connections from Vercel's IP ranges.
+    </Warning>
+  </Step>
+  
+  <Step title="Enable SSL">
+    Download RDS CA certificate and configure SSL:
+    
+    ```bash
+    DATABASE_URL="postgresql://user:pass@host:5432/db?sslmode=require"
+    ```
+  </Step>
+</Steps>
+
+## Prisma Setup
+
+### Install Dependencies
+
+```bash
+npm install prisma @prisma/client
+# or
+yarn add prisma @prisma/client
+```
+
+### Initialize Prisma (Already Done)
+
+The Miniswimmer project already has Prisma configured. The schema is at:
+
+```
+prisma/
+└── schema.prisma
+```
+
+### Generate Prisma Client
+
+Generate the type-safe Prisma Client:
+
+```bash
+npx prisma generate
+```
+
+This creates the client based on your schema at `node_modules/@prisma/client`.
+
+<Tip>
+  Add `prisma generate` to your build script to ensure the client is always up-to-date:
+  
+  ```json package.json
+  {
+    "scripts": {
+      "build": "prisma generate && next build"
+    }
+  }
+  ```
+</Tip>
+
+## Database Migrations
+
+### Development Workflow
+
+<Steps>
+  <Step title="Modify Schema">
+    Edit `prisma/schema.prisma` to add/modify models:
+    
+    ```prisma
+    model SwimmingClass {
+      id          String   @id @default(cuid())
+      name        String
+      capacity    Int
+      instructorId String
+      createdAt   DateTime @default(now())
+    }
+    ```
+  </Step>
+  
+  <Step title="Create Migration">
+    Generate migration files:
+    
+    ```bash
+    npx prisma migrate dev --name add_swimming_class
+    ```
+    
+    This will:
+    - Generate SQL migration files
+    - Apply migrations to your database
+    - Regenerate Prisma Client
+  </Step>
+  
+  <Step title="Review Migration">
+    Check generated SQL in `prisma/migrations/`:
+    
+    ```sql
+    -- CreateTable
+    CREATE TABLE "SwimmingClass" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "capacity" INTEGER NOT NULL,
+        "instructorId" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "SwimmingClass_pkey" PRIMARY KEY ("id")
+    );
+    ```
+  </Step>
+</Steps>
+
+### Production Migrations
+
+<Warning>
+  Never use `prisma migrate dev` in production. Use `prisma migrate deploy` instead.
+</Warning>
+
+<Steps>
+  <Step title="Test Migrations Locally">
+    Always test migrations on a staging database first:
+    
+    ```bash
+    DATABASE_URL="postgresql://staging-url" npx prisma migrate deploy
+    ```
+  </Step>
+  
+  <Step title="Deploy to Production">
+    Run migrations on production database:
+    
+    ```bash
+    npx prisma migrate deploy
+    ```
+    
+    This applies all pending migrations.
+  </Step>
+  
+  <Step title="Verify Migration">
+    Check migration status:
+    
+    ```bash
+    npx prisma migrate status
+    ```
+  </Step>
+</Steps>
+
+### Automated Migrations in CI/CD
+
+Add migrations to your deployment pipeline:
+
+```yaml .github/workflows/deploy.yml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      - name: Deploy to Vercel
+        run: vercel --prod
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+```
+
+## Database Management
+
+### Prisma Studio
+
+Open a GUI to browse and edit data:
+
+```bash
+npx prisma studio
+```
+
+This opens a web interface at `http://localhost:5555`.
+
+<Note>
+  Prisma Studio is useful for development but should not be exposed in production.
+</Note>
+
+### Common Prisma Commands
+
+```bash Generate Prisma Client
+npx prisma generate
+```
+
+```bash Create and apply migration
+npx prisma migrate dev --name migration_name
+```
+
+```bash Apply pending migrations
+npx prisma migrate deploy
+```
+
+```bash Reset database (dev only)
+npx prisma migrate reset
+```
+
+```bash Validate schema
+npx prisma validate
+```
+
+```bash Format schema file
+npx prisma format
+```
+
+```bash Pull schema from database
+npx prisma db pull
+```
+
+```bash Push schema without migrations
+npx prisma db push
+```
+
+### Seeding Database
+
+Create a seed script to populate initial data:
+
+```typescript prisma/seed.ts
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  // Create admin user
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@miniswimmer.us' },
+    update: {},
+    create: {
+      email: 'admin@miniswimmer.us',
+      name: 'Admin User',
+      role: 'ADMIN',
+    },
+  });
+  
+  console.log({ admin });
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+```
+
+Add to `package.json`:
+
+```json
+{
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}
+```
+
+Run seed:
+
+```bash
+npx prisma db seed
+```
+
+## Connection Pooling
+
+### Why Connection Pooling?
+
+Serverless functions (like Vercel) create new database connections on each invocation. Without pooling:
+
+- ❌ Connection exhaustion
+- ❌ Slow cold starts
+- ❌ Database overload
+
+### PgBouncer Configuration
+
+Use PgBouncer for connection pooling:
+
+```prisma Connection Pool Config
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL") // Used for migrations
+}
+```
+
+```bash Environment Variables
+DATABASE_URL="postgresql://user:pass@pooler.host:6543/db?pgbouncer=true"
+DIRECT_DATABASE_URL="postgresql://user:pass@host:5432/db"
+```
+
+<Tip>
+  Most managed PostgreSQL providers (Supabase, Neon, etc.) include built-in connection pooling.
+</Tip>
+
+## Backup and Recovery
+
+### Automated Backups
+
+<Steps>
+  <Step title="Enable Point-in-Time Recovery">
+    Most cloud providers support PITR:
+    
+    - **Vercel Postgres**: Automatic daily backups
+    - **Supabase**: Daily backups with 7-day retention
+    - **AWS RDS**: Automated backups with customizable retention
+  </Step>
+  
+  <Step title="Manual Backup">
+    Create manual backup using pg_dump:
+    
+    ```bash
+    pg_dump $DATABASE_URL > backup.sql
+    ```
+  </Step>
+  
+  <Step title="Restore from Backup">
+    ```bash
+    psql $DATABASE_URL < backup.sql
+    ```
+  </Step>
+</Steps>
+
+### Backup Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Frequency" icon="calendar">
+    Daily automated backups minimum
+  </Card>
+  <Card title="Retention" icon="clock">
+    Keep backups for at least 30 days
+  </Card>
+  <Card title="Testing" icon="flask">
+    Test restore process monthly
+  </Card>
+  <Card title="Off-site" icon="cloud">
+    Store backups in separate region
+  </Card>
+</CardGroup>
+
+## Performance Optimization
+
+### Indexing
+
+Add indexes to frequently queried fields:
+
+```prisma Schema with Indexes
+model User {
+  id    String @id @default(cuid())
+  email String @unique // Automatically indexed
+  
+  @@index([createdAt])
+  @@index([stripeCustomerId])
+}
+```
+
+### Query Optimization
+
+Use Prisma's query features:
+
+```typescript Efficient Queries
+// Include relations
+const user = await prisma.user.findUnique({
+  where: { id: userId },
+  include: {
+    accounts: true,
+    sessions: true,
+  },
+});
+
+// Select specific fields
+const users = await prisma.user.findMany({
+  select: {
+    id: true,
+    email: true,
+    name: true,
+  },
+});
+
+// Paginate results
+const page = await prisma.user.findMany({
+  skip: 10,
+  take: 10,
+  orderBy: {
+    createdAt: 'desc',
+  },
+});
+```
+
+### Connection Management
+
+Reuse Prisma Client instance:
+
+```typescript lib/prisma.ts
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ['query', 'error', 'warn'],
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+```
+
+## Monitoring
+
+### Database Metrics to Track
+
+- **Connection count**: Monitor active connections
+- **Query performance**: Slow query log
+- **Database size**: Track growth over time
+- **Error rate**: Failed queries and timeouts
+
+### Prisma Logging
+
+Enable query logging:
+
+```typescript
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Migration failed" icon="exclamation-triangle">
+    **Solution**:
+    
+    1. Check migration logs
+    2. Verify database connection
+    3. Resolve schema conflicts
+    4. Roll back if needed:
+    
+    ```bash
+    npx prisma migrate resolve --rolled-back <migration-name>
+    ```
+  </Accordion>
+  
+  <Accordion title="Connection timeout" icon="clock">
+    **Solution**:
+    
+    - Enable connection pooling
+    - Increase connection timeout
+    - Check database firewall rules
+    - Verify DATABASE_URL format
+  </Accordion>
+  
+  <Accordion title="Prisma Client not generating" icon="code">
+    **Solution**:
+    
+    ```bash
+    npx prisma generate --force
+    ```
+    
+    Then restart your dev server.
+  </Accordion>
+  
+  <Accordion title="Shadow database error" icon="database">
+    **Solution**:
+    
+    Create a separate shadow database or use Prisma's cloud shadow database:
+    
+    ```prisma
+    datasource db {
+      provider = "postgresql"
+      url      = env("DATABASE_URL")
+      shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Deploy Application">
+    With your database configured, deploy to Vercel.
+    
+    → [Vercel Deployment Guide](/deployment/vercel)
+  </Step>
+  
+  <Step title="Set Up Monitoring">
+    Configure database monitoring and alerts for production.
+  </Step>
+  
+  <Step title="Implement Backups">
+    Ensure automated backups are running and test recovery procedures.
+  </Step>
+</Steps>

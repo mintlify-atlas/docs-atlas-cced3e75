@@ -1,0 +1,626 @@
+---
+title: Environment Variables
+description: Complete guide to configuring environment variables for the Miniswimmer platform
+---
+
+## Overview
+
+The Miniswimmer platform requires several environment variables for database connections, third-party services, and feature configuration. This guide covers all required and optional environment variables.
+
+<Warning>
+  Never commit your `.env` file to version control. Always add `.env` to your `.gitignore` file.
+</Warning>
+
+## Setup
+
+Create a `.env` file in the root directory of your project:
+
+```bash
+touch .env
+```
+
+## Required Environment Variables
+
+These variables are essential for the platform to function:
+
+### Database Configuration
+
+```bash .env
+# PostgreSQL database connection string
+DATABASE_URL="postgresql://username:password@localhost:5432/miniswimmer?schema=public"
+
+# Shadow database for Prisma migrations (required for cloud providers like Heroku)
+SHADOW_DATABASE_URL="postgresql://username:password@localhost:5432/miniswimmer_shadow?schema=public"
+```
+
+<Accordion title="Database URL Format">
+  The PostgreSQL connection string format:
+
+  ```
+  postgresql://[user]:[password]@[host]:[port]/[database]?schema=public
+  ```
+
+  Example components:
+  - **user**: Database username (e.g., `postgres`)
+  - **password**: Database password
+  - **host**: Database host (e.g., `localhost`, `db.example.com`)
+  - **port**: Database port (default: `5432`)
+  - **database**: Database name (e.g., `miniswimmer`)
+  - **schema**: Database schema (typically `public`)
+</Accordion>
+
+<Accordion title="Shadow Database">
+  A shadow database is only needed when using cloud providers that don't support creating new databases (like Heroku). For local development, you may omit this variable.
+
+  Learn more: [Prisma Shadow Database](https://pris.ly/d/migrate-shadow)
+</Accordion>
+
+### Server Configuration
+
+```bash .env
+# Server port (default: 3000)
+PORT=3000
+
+# Next.js Server Actions encryption key
+NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="your-secret-encryption-key"
+```
+
+<Note>
+  Generate a secure encryption key using:
+  ```bash
+  openssl rand -base64 32
+  ```
+</Note>
+
+## Content Management (Prismic)
+
+The platform uses Prismic CMS for content management:
+
+```bash .env
+# Prismic repository name
+NEXT_PUBLIC_PRISMIC_REPOSITORY="your-repository-name"
+
+# Prismic access token (for private repositories)
+PRISMIC_ACCESS_TOKEN="your-prismic-access-token"
+```
+
+<Steps>
+  <Step title="Create Prismic Repository">
+    1. Go to [Prismic.io](https://prismic.io)
+    2. Sign up or log in
+    3. Create a new repository
+    4. Note your repository name
+  </Step>
+
+  <Step title="Get Access Token">
+    1. In your Prismic repository, go to Settings
+    2. Navigate to API & Security
+    3. Generate an access token
+    4. Copy the token to your `.env` file
+  </Step>
+
+  <Step title="Configure Image Optimization">
+    Prismic images are already configured in `next.config.js`:
+
+    ```javascript
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: 'images.prismic.io',
+          port: '',
+        },
+      ],
+      domains: ['images.prismic.io'],
+    }
+    ```
+  </Step>
+</Steps>
+
+## Email Service (EmailJS)
+
+EmailJS is used for contact forms and email communications:
+
+```bash .env
+# EmailJS service ID
+NEXT_PUBLIC_EMAILJS_SERVICE_ID="service_ucb8wga"
+
+# EmailJS template IDs
+NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE="template_3z2nv7b"
+NEXT_PUBLIC_EMAILJS_TEST_CLASS_TEMPLATE="template_xxxxxxx"
+NEXT_PUBLIC_EMAILJS_REAGENDAMIENTO_TEMPLATE="template_xxxxxxx"
+
+# EmailJS public key
+NEXT_PUBLIC_EMAILJS_PUBLIC_KEY="Csc41asZklkk5HTWk"
+```
+
+<Accordion title="EmailJS Setup">
+  <Steps>
+    <Step title="Create EmailJS Account">
+      1. Go to [EmailJS.com](https://www.emailjs.com)
+      2. Sign up for a free account
+      3. Verify your email
+    </Step>
+
+    <Step title="Add Email Service">
+      1. In EmailJS dashboard, go to Email Services
+      2. Add a new service (Gmail, Outlook, etc.)
+      3. Configure and connect your email account
+      4. Copy the Service ID
+    </Step>
+
+    <Step title="Create Email Templates">
+      1. Go to Email Templates
+      2. Create templates for:
+         - Contact form (CONTACTO-CHILE)
+         - Test class requests
+         - Rescheduling requests
+      3. Use template variables like `{{from_name}}`, `{{message}}`, etc.
+      4. Copy each Template ID
+    </Step>
+
+    <Step title="Get Public Key">
+      1. Go to Account > API Keys
+      2. Copy your Public Key
+      3. Add to `.env` as `NEXT_PUBLIC_EMAILJS_PUBLIC_KEY`
+    </Step>
+  </Steps>
+</Accordion>
+
+<Accordion title="Contact Form Implementation">
+  The contact form in `src/components/Common/ContactForm/index.tsx` uses EmailJS:
+
+  ```typescript
+  await emailjs.send(
+    process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+    process.env.NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE,
+    templateParams,
+    process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+  );
+  ```
+
+  Required template parameters:
+  - `from_name`: Sender's name
+  - `from_email`: Sender's email
+  - `message`: Contact message
+  - `to_name`: Recipient name (e.g., 'Miniswimmer')
+</Accordion>
+
+## Analytics & Tracking
+
+### Google Tag Manager
+
+```bash .env
+# Google Tag Manager ID
+NEXT_PUBLIC_GTM_ID="GTM-K9KD3K78"
+```
+
+<Note>
+  The current implementation has the GTM ID hardcoded in `src/components/GoogleTagManager.tsx`. To use the environment variable, update the component:
+
+  ```tsx
+  const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
+  ```
+</Note>
+
+### Google Analytics (via GTM)
+
+```bash .env
+# Google Analytics measurement ID (configured in GTM)
+NEXT_PUBLIC_GA_MEASUREMENT_ID="G-XXXXXXXXXX"
+```
+
+<Tip>
+  Configure Google Analytics through Google Tag Manager for better flexibility and control.
+</Tip>
+
+## Search (Algolia) - Optional
+
+If `isAlgoliaEnabled: true` in `integrations.config.tsx`:
+
+```bash .env
+# Algolia application ID
+NEXT_PUBLIC_ALGOLIA_APPLICATION_ID="your-algolia-app-id"
+
+# Algolia search-only API key (safe to expose)
+NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY="your-search-api-key"
+
+# Algolia index name
+NEXT_PUBLIC_ALGOLIA_INDEX_NAME="miniswimmer_content"
+
+# Algolia admin API key (server-side only, never expose)
+ALGOLIA_ADMIN_API_KEY="your-admin-api-key"
+```
+
+<Warning>
+  Never expose your Algolia admin API key in client-side code. Only use it in server-side API routes.
+</Warning>
+
+<Accordion title="Algolia Setup">
+  <Steps>
+    <Step title="Create Algolia Account">
+      1. Go to [Algolia.com](https://www.algolia.com)
+      2. Sign up for an account
+      3. Create a new application
+    </Step>
+
+    <Step title="Create Index">
+      1. In your Algolia dashboard, create a new index
+      2. Name it `miniswimmer_content` or similar
+      3. Configure searchable attributes
+    </Step>
+
+    <Step title="Get API Keys">
+      1. Go to Settings > API Keys
+      2. Copy your Application ID
+      3. Copy your Search-Only API Key (for frontend)
+      4. Copy your Admin API Key (for indexing)
+    </Step>
+
+    <Step title="Enable Integration">
+      Update `integrations.config.tsx`:
+      ```tsx
+      isAlgoliaEnabled: true,
+      ```
+    </Step>
+  </Steps>
+</Accordion>
+
+## Authentication - Optional
+
+If using OAuth authentication:
+
+```bash .env
+# NextAuth secret (generate with: openssl rand -base64 32)
+NEXTAUTH_SECRET="your-nextauth-secret"
+
+# Application URL
+NEXTAUTH_URL="http://localhost:3000"
+
+# Google OAuth
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Email provider (for magic links)
+EMAIL_SERVER_HOST="smtp.gmail.com"
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER="your-email@gmail.com"
+EMAIL_SERVER_PASSWORD="your-app-password"
+EMAIL_FROM="noreply@miniswimmer.cl"
+```
+
+<Accordion title="Google OAuth Setup">
+  1. Go to [Google Cloud Console](https://console.cloud.google.com)
+  2. Create a new project or select existing
+  3. Enable Google+ API
+  4. Go to Credentials > Create Credentials > OAuth 2.0 Client ID
+  5. Configure authorized redirect URIs:
+     - Development: `http://localhost:3000/api/auth/callback/google`
+     - Production: `https://yourdomain.com/api/auth/callback/google`
+  6. Copy Client ID and Client Secret
+</Accordion>
+
+## Payments (Stripe) - Optional
+
+If `isPaymentsEnabled: true`:
+
+```bash .env
+# Stripe publishable key (safe to expose)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_xxxxxxxxxxxxx"
+
+# Stripe secret key (server-side only)
+STRIPE_SECRET_KEY="sk_test_xxxxxxxxxxxxx"
+
+# Stripe webhook signing secret
+STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxxx"
+
+# Stripe price IDs for subscription tiers
+STRIPE_PRICE_ID_BASIC="price_xxxxxxxxxxxxx"
+STRIPE_PRICE_ID_PRO="price_xxxxxxxxxxxxx"
+```
+
+<Warning>
+  Never expose your Stripe secret key or webhook secret in client-side code.
+</Warning>
+
+<Accordion title="Stripe Webhook Setup">
+  For local development, use the Stripe CLI:
+
+  ```bash
+  # Install Stripe CLI
+  brew install stripe/stripe-cli/stripe
+
+  # Login
+  stripe login
+
+  # Listen for webhooks
+  npm run stripe:listen
+  ```
+
+  For production:
+  1. Go to Stripe Dashboard > Developers > Webhooks
+  2. Add endpoint: `https://yourdomain.com/api/stripe/webhook`
+  3. Select events to listen for
+  4. Copy the webhook signing secret
+</Accordion>
+
+## Internationalization
+
+```bash .env
+# Default locale
+NEXT_PUBLIC_DEFAULT_LOCALE="es"
+
+# Supported locales (comma-separated)
+NEXT_PUBLIC_SUPPORTED_LOCALES="en,es"
+```
+
+<Note>
+  The default locale is set to Spanish (es) in `src/i18n/request.ts`. Supported locales are defined in `src/i18n/supported-locales.ts`.
+</Note>
+
+## Build & Deployment
+
+```bash .env
+# Node environment
+NODE_ENV="development" # or "production"
+
+# Next.js build ID (auto-generated)
+__NEXT_BUILD_ID="auto"
+
+# Next.js dist directory
+__NEXT_DIST_DIR=".next"
+```
+
+## Complete .env Template
+
+Here's a complete template with all variables:
+
+```bash .env
+# ======================
+# Database
+# ======================
+DATABASE_URL="postgresql://username:password@localhost:5432/miniswimmer?schema=public"
+SHADOW_DATABASE_URL="postgresql://username:password@localhost:5432/miniswimmer_shadow?schema=public"
+
+# ======================
+# Server
+# ======================
+PORT=3000
+NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="your-secret-encryption-key"
+
+# ======================
+# Prismic CMS
+# ======================
+NEXT_PUBLIC_PRISMIC_REPOSITORY="your-repository-name"
+PRISMIC_ACCESS_TOKEN="your-prismic-access-token"
+
+# ======================
+# EmailJS
+# ======================
+NEXT_PUBLIC_EMAILJS_SERVICE_ID="service_ucb8wga"
+NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE="template_3z2nv7b"
+NEXT_PUBLIC_EMAILJS_TEST_CLASS_TEMPLATE="template_xxxxxxx"
+NEXT_PUBLIC_EMAILJS_REAGENDAMIENTO_TEMPLATE="template_xxxxxxx"
+NEXT_PUBLIC_EMAILJS_PUBLIC_KEY="your-public-key"
+
+# ======================
+# Analytics
+# ======================
+NEXT_PUBLIC_GTM_ID="GTM-K9KD3K78"
+NEXT_PUBLIC_GA_MEASUREMENT_ID="G-XXXXXXXXXX"
+
+# ======================
+# Algolia (Optional)
+# ======================
+NEXT_PUBLIC_ALGOLIA_APPLICATION_ID="your-algolia-app-id"
+NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY="your-search-api-key"
+NEXT_PUBLIC_ALGOLIA_INDEX_NAME="miniswimmer_content"
+ALGOLIA_ADMIN_API_KEY="your-admin-api-key"
+
+# ======================
+# Authentication (Optional)
+# ======================
+NEXTAUTH_SECRET="your-nextauth-secret"
+NEXTAUTH_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# ======================
+# Email Server (Optional)
+# ======================
+EMAIL_SERVER_HOST="smtp.gmail.com"
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER="your-email@gmail.com"
+EMAIL_SERVER_PASSWORD="your-app-password"
+EMAIL_FROM="noreply@miniswimmer.cl"
+
+# ======================
+# Stripe (Optional)
+# ======================
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_xxxxxxxxxxxxx"
+STRIPE_SECRET_KEY="sk_test_xxxxxxxxxxxxx"
+STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxxx"
+STRIPE_PRICE_ID_BASIC="price_xxxxxxxxxxxxx"
+STRIPE_PRICE_ID_PRO="price_xxxxxxxxxxxxx"
+
+# ======================
+# Internationalization
+# ======================
+NEXT_PUBLIC_DEFAULT_LOCALE="es"
+NEXT_PUBLIC_SUPPORTED_LOCALES="en,es"
+
+# ======================
+# Build & Deployment
+# ======================
+NODE_ENV="development"
+```
+
+## Environment-Specific Files
+
+For different environments, create separate files:
+
+- `.env.local` - Local development (overrides `.env`)
+- `.env.development` - Development environment
+- `.env.production` - Production environment
+- `.env.test` - Testing environment
+
+<Note>
+  Next.js loads environment variables in this order:
+  1. `.env.local` (highest priority, never committed)
+  2. `.env.[NODE_ENV]` (environment-specific)
+  3. `.env` (default, can be committed for shared defaults)
+</Note>
+
+## Variable Naming Convention
+
+### Public vs Private Variables
+
+<Accordion title="Public Variables (NEXT_PUBLIC_*)">
+  Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser:
+
+  ```bash
+  NEXT_PUBLIC_API_URL="https://api.example.com"
+  ```
+
+  Use for:
+  - API endpoints
+  - Feature flags
+  - Public IDs (Stripe publishable key, Google client ID)
+  - Analytics IDs
+
+  <Warning>
+    Never put secrets in `NEXT_PUBLIC_*` variables!
+  </Warning>
+</Accordion>
+
+<Accordion title="Private Variables (No Prefix)">
+  Variables without `NEXT_PUBLIC_` are only available server-side:
+
+  ```bash
+  DATABASE_URL="postgresql://..."
+  STRIPE_SECRET_KEY="sk_..."
+  ```
+
+  Use for:
+  - Database credentials
+  - API secret keys
+  - Webhook secrets
+  - Admin tokens
+</Accordion>
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Never Commit Secrets">
+    Add `.env*` to `.gitignore`:
+
+    ```gitignore .gitignore
+    # Environment variables
+    .env
+    .env.local
+    .env.*.local
+    .env.development
+    .env.production
+    ```
+  </Step>
+
+  <Step title="Use Strong Secrets">
+    Generate cryptographically secure secrets:
+
+    ```bash
+    # Generate 32-byte base64 secret
+    openssl rand -base64 32
+
+    # Generate 256-bit hex secret
+    openssl rand -hex 32
+    ```
+  </Step>
+
+  <Step title="Rotate Keys Regularly">
+    - Rotate API keys every 90 days
+    - Rotate secrets after team member departures
+    - Use different keys for each environment
+  </Step>
+
+  <Step title="Use Environment-Specific Keys">
+    - Development: Use test/sandbox keys
+    - Staging: Use separate staging keys
+    - Production: Use production keys with restricted permissions
+  </Step>
+
+  <Step title="Validate Environment Variables">
+    Create a validation script:
+
+    ```typescript lib/env.ts
+    function validateEnv() {
+      const required = [
+        'DATABASE_URL',
+        'NEXT_PUBLIC_PRISMIC_REPOSITORY',
+        'NEXT_PUBLIC_EMAILJS_SERVICE_ID',
+      ];
+
+      for (const key of required) {
+        if (!process.env[key]) {
+          throw new Error(`Missing required environment variable: ${key}`);
+        }
+      }
+    }
+
+    validateEnv();
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<Accordion title="Environment variables not loading">
+  1. Restart your development server after changing `.env`
+  2. Verify the variable name is correct (case-sensitive)
+  3. Check that `.env` is in the project root
+  4. For browser access, ensure the variable has `NEXT_PUBLIC_` prefix
+</Accordion>
+
+<Accordion title="Variables undefined in browser">
+  Client-side variables must:
+  1. Start with `NEXT_PUBLIC_`
+  2. Be defined before the build
+  3. Not be dynamically constructed (e.g., `process.env[key]` won't work)
+</Accordion>
+
+<Accordion title="Database connection errors">
+  1. Verify PostgreSQL is running
+  2. Check `DATABASE_URL` format is correct
+  3. Test connection: `psql $DATABASE_URL`
+  4. Ensure database exists and user has permissions
+</Accordion>
+
+<Accordion title="Prisma Client errors">
+  After changing `DATABASE_URL`:
+  ```bash
+  npx prisma generate
+  npx prisma db push
+  ```
+</Accordion>
+
+## Deployment Checklist
+
+Before deploying to production:
+
+- [ ] Set `NODE_ENV=production`
+- [ ] Use production database URL
+- [ ] Use production API keys (not test/sandbox)
+- [ ] Configure production `NEXTAUTH_URL`
+- [ ] Set up production Stripe webhook
+- [ ] Enable production Prismic repository
+- [ ] Configure production email service
+- [ ] Set production GTM/Analytics IDs
+- [ ] Verify all secrets are secure and rotated
+- [ ] Test all integrations in staging environment
+
+## Next Steps
+
+- Review [Installation Guide](/setup/installation) for setting up the development environment
+- Check [Configuration Guide](/setup/configuration) for customizing Next.js and Tailwind
+- Set up Prismic CMS content models
+- Configure EmailJS templates
+- Test all integrations locally before deploying

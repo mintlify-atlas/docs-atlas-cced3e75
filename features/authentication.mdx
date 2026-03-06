@@ -1,0 +1,427 @@
+---
+title: 'Authentication'
+description: 'Prisma-based authentication system for user management and sessions'
+icon: 'lock'
+---
+
+## Overview
+
+Miniswimmer uses a **Prisma-based authentication system** built on PostgreSQL for secure user management, session handling, and account administration. The system is designed for flexibility and can be extended with OAuth providers.
+
+## Database Schema
+
+The authentication system is defined in `prisma/schema.prisma` using four main models:
+
+### User Model
+
+The core user model at `prisma/schema.prisma:54` stores user information and authentication details:
+
+<CodeGroup>
+```prisma prisma/schema.prisma
+model User {
+  id                     String    @id @default(cuid())
+  name                   String?
+  email                  String?   @unique
+  emailVerified          DateTime?
+  image                  String?
+  password               String?
+  passwordResetToken     String?   @unique
+  passwordResetTokenExp  DateTime?
+  role                   String?   @default("USER")
+  stripeCustomerId       String?   @unique @map(name: "stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map(name: "stripe_subscription_id")
+  stripePriceId          String?   @map(name: "stripe_price_id")
+  stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
+  createdAt              DateTime  @default(now())
+  accounts               Account[]
+  sessions               Session[]
+  apiKeys                ApiKey[]
+}
+```
+</CodeGroup>
+
+<Note>
+  The User model uses **cuid()** for generating unique identifiers, providing better performance and security than traditional UUIDs.
+</Note>
+
+### Account Model
+
+The Account model (`prisma/schema.prisma:18`) enables OAuth provider integration:
+
+```prisma prisma/schema.prisma
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+```
+
+### Session Model
+
+Sessions are managed with the Session model (`prisma/schema.prisma:37`):
+
+```prisma prisma/schema.prisma
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### API Key Model
+
+For programmatic access, API keys are supported (`prisma/schema.prisma:45`):
+
+```prisma prisma/schema.prisma
+model ApiKey {
+  id        String   @id @default(cuid())
+  key       String
+  name      String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### Verification Token Model
+
+Email verification uses the VerificationToken model (`prisma/schema.prisma:74`):
+
+```prisma prisma/schema.prisma
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+```
+
+## Database Configuration
+
+The system uses PostgreSQL with the following configuration (`prisma/schema.prisma:4`):
+
+```prisma prisma/schema.prisma
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+```
+
+<Warning>
+  The `shadowDatabaseUrl` is required when deploying to cloud providers like Heroku that don't support automatic database creation during migrations.
+</Warning>
+
+## Key Features
+
+### User Roles
+
+The system includes a role-based access control with a default `USER` role:
+
+```typescript
+role: String? @default("USER")
+```
+
+You can extend this to support additional roles like `ADMIN`, `COACH`, or `MANAGER`.
+
+### Password Reset Flow
+
+Password reset functionality is built into the User model:
+
+<Steps>
+  <Step title="Generate Reset Token">
+    Create a unique reset token and store it with an expiration:
+    
+    ```typescript
+    const resetToken = generateSecureToken();
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+    
+    await prisma.user.update({
+      where: { email: userEmail },
+      data: {
+        passwordResetToken: resetToken,
+        passwordResetTokenExp: expiresAt,
+      },
+    });
+    ```
+  </Step>
+
+  <Step title="Send Reset Email">
+    Email the reset link containing the token to the user.
+  </Step>
+
+  <Step title="Verify and Reset">
+    Validate the token and expiration, then update the password:
+    
+    ```typescript
+    const user = await prisma.user.findUnique({
+      where: { passwordResetToken: token },
+    });
+    
+    if (user && user.passwordResetTokenExp > new Date()) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          passwordResetToken: null,
+          passwordResetTokenExp: null,
+        },
+      });
+    }
+    ```
+  </Step>
+</Steps>
+
+### Stripe Integration
+
+The User model includes built-in Stripe customer tracking:
+
+```prisma
+stripeCustomerId       String?   @unique
+stripeSubscriptionId   String?   @unique
+stripePriceId          String?
+stripeCurrentPeriodEnd DateTime?
+```
+
+This enables seamless subscription management for swimming class packages.
+
+## Session Management
+
+Sessions are managed through the Session model with the following characteristics:
+
+- **Unique session tokens** for security
+- **Expiration timestamps** for automatic cleanup
+- **User association** with cascade deletion
+
+### Creating a Session
+
+```typescript
+import { prisma } from '@/lib/prisma';
+
+async function createSession(userId: string) {
+  const sessionToken = generateSessionToken();
+  const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  
+  const session = await prisma.session.create({
+    data: {
+      sessionToken,
+      userId,
+      expires,
+    },
+  });
+  
+  return session;
+}
+```
+
+### Validating a Session
+
+```typescript
+async function validateSession(sessionToken: string) {
+  const session = await prisma.session.findUnique({
+    where: { sessionToken },
+    include: { user: true },
+  });
+  
+  if (!session || session.expires < new Date()) {
+    return null;
+  }
+  
+  return session;
+}
+```
+
+## OAuth Provider Support
+
+The Account model supports multiple OAuth providers. Example providers include:
+
+- Google
+- Facebook
+- GitHub
+- Twitter/X
+
+### Adding an OAuth Provider
+
+<Steps>
+  <Step title="Configure Provider Credentials">
+    Add provider credentials to your environment variables:
+    
+    ```bash .env
+    GOOGLE_CLIENT_ID=your_client_id
+    GOOGLE_CLIENT_SECRET=your_client_secret
+    ```
+  </Step>
+
+  <Step title="Create Account on Login">
+    When a user authenticates, create an Account record:
+    
+    ```typescript
+    await prisma.account.create({
+      data: {
+        userId: user.id,
+        type: 'oauth',
+        provider: 'google',
+        providerAccountId: googleProfile.id,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: tokens.expires_at,
+      },
+    });
+    ```
+  </Step>
+
+  <Step title="Handle Token Refresh">
+    Implement token refresh logic for long-lived sessions:
+    
+    ```typescript
+    async function refreshAccessToken(account: Account) {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        body: JSON.stringify({
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          refresh_token: account.refresh_token,
+          grant_type: 'refresh_token',
+        }),
+      });
+      
+      const tokens = await response.json();
+      
+      await prisma.account.update({
+        where: { id: account.id },
+        data: {
+          access_token: tokens.access_token,
+          expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
+        },
+      });
+    }
+    ```
+  </Step>
+</Steps>
+
+## API Key Authentication
+
+For programmatic access to the platform, API keys can be generated:
+
+```typescript
+import crypto from 'crypto';
+
+async function createApiKey(userId: string, name: string) {
+  const key = crypto.randomBytes(32).toString('hex');
+  
+  const apiKey = await prisma.apiKey.create({
+    data: {
+      key,
+      name,
+      userId,
+    },
+  });
+  
+  return apiKey;
+}
+
+async function validateApiKey(key: string) {
+  const apiKey = await prisma.apiKey.findFirst({
+    where: { key },
+    include: { user: true },
+  });
+  
+  return apiKey;
+}
+```
+
+## Integration Toggle
+
+Authentication can be enabled or disabled via `integrations.config.tsx:6`:
+
+```typescript integrations.config.tsx
+const integrations = {
+  isAuthEnabled: true,  // Set to false to disable authentication
+};
+```
+
+<Tip>
+  Keep authentication enabled in production environments to protect user data and manage access control.
+</Tip>
+
+## Database Migrations
+
+When modifying the schema, run migrations to update the database:
+
+```bash
+# Create a new migration
+npx prisma migrate dev --name add_new_field
+
+# Apply migrations in production
+npx prisma migrate deploy
+
+# Generate Prisma Client
+npx prisma generate
+```
+
+## Security Best Practices
+
+<Warning>
+  **Never commit sensitive credentials** to version control. Always use environment variables for database URLs and API keys.
+</Warning>
+
+- **Hash passwords** using bcrypt or argon2 before storage
+- **Use HTTPS** in production for all authentication endpoints
+- **Implement rate limiting** on login and password reset endpoints
+- **Validate email addresses** before creating accounts
+- **Set secure cookie flags** for session tokens (HttpOnly, Secure, SameSite)
+- **Rotate API keys** regularly and revoke unused keys
+- **Log authentication events** for audit trails
+
+## Common Operations
+
+### Find User by Email
+
+```typescript
+const user = await prisma.user.findUnique({
+  where: { email: 'user@example.com' },
+  include: {
+    accounts: true,
+    sessions: true,
+  },
+});
+```
+
+### Delete User and Related Data
+
+```typescript
+// Cascade deletion automatically removes accounts, sessions, and API keys
+await prisma.user.delete({
+  where: { id: userId },
+});
+```
+
+### Count Active Sessions
+
+```typescript
+const activeSessionCount = await prisma.session.count({
+  where: {
+    expires: { gt: new Date() },
+  },
+});
+```

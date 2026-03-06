@@ -1,0 +1,744 @@
+---
+title: 'Deployment Troubleshooting'
+description: 'Common deployment issues and solutions for Miniswimmer'
+icon: 'wrench'
+---
+
+## Overview
+
+This guide covers common issues you may encounter when deploying the Miniswimmer platform and how to resolve them.
+
+<Tip>
+  Most deployment issues fall into these categories: build errors, environment configuration, database connectivity, or runtime errors.
+</Tip>
+
+## Build Errors
+
+### Peer Dependency Conflicts
+
+<Accordion title="Error: Peer dependency conflicts with React 19" icon="npm" defaultOpen>
+  **Symptom**: npm install fails with peer dependency warnings about React 19.
+  
+  ```bash Error Message
+  npm ERR! ERESOLVE unable to resolve dependency tree
+  npm ERR! Could not resolve dependency:
+  npm ERR! peer react@"^18.0.0" from package-name@x.x.x
+  ```
+  
+  **Solution**: Use the `--legacy-peer-deps` flag:
+  
+  ```bash
+  npm install --legacy-peer-deps
+  ```
+  
+  **For Vercel**: Update your install command in Project Settings:
+  1. Go to Project Settings → General
+  2. Build & Development Settings
+  3. Install Command: `npm install --legacy-peer-deps`
+  
+  <Note>
+    This is expected behavior as the project uses React 19, which is still relatively new. Some dependencies haven't updated their peer dependencies yet.
+  </Note>
+</Accordion>
+
+### TypeScript Errors
+
+<Accordion title="Build fails with TypeScript errors" icon="code">
+  **Symptom**: Build fails with type checking errors.
+  
+  ```bash
+  Type error: Property 'x' does not exist on type 'Y'
+  ```
+  
+  **Solutions**:
+  
+  1. **Run type checking locally**:
+     ```bash
+     npm run check-lint
+     ```
+  
+  2. **Check Prisma Client generation**:
+     ```bash
+     npx prisma generate
+     ```
+     
+     Prisma types may be missing if the client wasn't generated.
+  
+  3. **Update build script** to generate Prisma Client:
+     ```json package.json
+     {
+       "scripts": {
+         "build": "prisma generate && next build"
+       }
+     }
+     ```
+  
+  4. **Clear Next.js cache**:
+     ```bash
+     rm -rf .next
+     npm run build
+     ```
+</Accordion>
+
+### Module Not Found Errors
+
+<Accordion title="Error: Cannot find module" icon="folder">
+  **Symptom**: Build fails with module import errors.
+  
+  ```bash
+  Module not found: Can't resolve '@/components/..'
+  ```
+  
+  **Solutions**:
+  
+  1. **Check tsconfig.json paths**:
+     ```json tsconfig.json
+     {
+       "compilerOptions": {
+         "paths": {
+           "@/*": ["./src/*"]
+         }
+       }
+     }
+     ```
+  
+  2. **Verify file exists** at the specified path
+  
+  3. **Check import case sensitivity** (especially on Linux/production):
+     ```typescript
+     // Wrong
+     import Button from '@/components/button';
+     
+     // Correct
+     import Button from '@/components/Button';
+     ```
+  
+  4. **Reinstall dependencies**:
+     ```bash
+     rm -rf node_modules package-lock.json
+     npm install --legacy-peer-deps
+     ```
+</Accordion>
+
+### Next.js Build Errors
+
+<Accordion title="Error: Export encountered errors on following paths" icon="next">
+  **Symptom**: Next.js fails to build specific pages.
+  
+  ```bash
+  Export encountered errors on following paths:
+  /page: /
+  ```
+  
+  **Solutions**:
+  
+  1. **Check for runtime errors** in the problematic page
+  
+  2. **Verify environment variables** are set correctly
+  
+  3. **Test page locally**:
+     ```bash
+     npm run build
+     npm start
+     ```
+  
+  4. **Check for missing data** or API calls failing during build
+  
+  5. **Review build logs** for more specific error messages
+</Accordion>
+
+## Environment Variable Issues
+
+### Variables Not Loading
+
+<Accordion title="Environment variables undefined in production" icon="key" defaultOpen>
+  **Symptom**: Application works locally but environment variables are undefined in production.
+  
+  **Solutions**:
+  
+  1. **Verify variables are set in Vercel**:
+     - Go to Project Settings → Environment Variables
+     - Ensure variables are enabled for Production environment
+     - Check for typos in variable names
+  
+  2. **Redeploy after adding variables**:
+     Environment variables are only available to new deployments.
+     
+     ```bash
+     vercel --prod
+     ```
+  
+  3. **Check variable prefixes**:
+     - `NEXT_PUBLIC_*` variables are exposed to the browser
+     - Non-prefixed variables are server-side only
+     
+     ```typescript
+     // Browser-accessible
+     const publicKey = process.env.NEXT_PUBLIC_STRIPE_KEY;
+     
+     // Server-side only
+     const secretKey = process.env.STRIPE_SECRET_KEY;
+     ```
+  
+  4. **Validate variable format**:
+     ```bash
+     # Correct
+     DATABASE_URL="postgresql://..."
+     
+     # Wrong (extra quotes)
+     DATABASE_URL=""postgresql://...""
+     ```
+</Accordion>
+
+### Database Connection String Issues
+
+<Accordion title="Invalid DATABASE_URL format" icon="database">
+  **Symptom**: Database connection fails with "invalid connection string" error.
+  
+  **Solution**: Verify your connection string format:
+  
+  ```bash Correct Format
+  DATABASE_URL="postgresql://username:password@host:port/database?schema=public"
+  ```
+  
+  **Common mistakes**:
+  
+  1. Missing quotes around the URL
+  2. Special characters in password not URL-encoded
+  3. Missing schema parameter
+  4. Wrong port number (PostgreSQL default is 5432)
+  
+  **URL encode special characters**:
+  ```bash
+  # If password is: p@ssw0rd!
+  # Encode as: p%40ssw0rd%21
+  DATABASE_URL="postgresql://user:p%40ssw0rd%21@host:5432/db"
+  ```
+  
+  <Tip>
+    Use [URL Encoder](https://www.urlencoder.org/) to encode passwords with special characters.
+  </Tip>
+</Accordion>
+
+## Database Issues
+
+### Connection Failures
+
+<Accordion title="Database connection timeout" icon="clock" defaultOpen>
+  **Symptom**: Application can't connect to database.
+  
+  ```bash
+  Error: P1001: Can't reach database server
+  ```
+  
+  **Solutions**:
+  
+  1. **Check database is running**:
+     - Verify database instance is active in your provider's dashboard
+     - Check for maintenance windows or outages
+  
+  2. **Verify connection from Vercel**:
+     - Ensure database allows connections from Vercel IPs
+     - Check firewall/security group rules
+  
+  3. **Test connection locally**:
+     ```bash
+     npx prisma db pull
+     ```
+  
+  4. **Enable connection pooling**:
+     ```bash
+     DATABASE_URL="postgresql://user:pass@host:5432/db?connection_limit=5"
+     ```
+  
+  5. **Check SSL requirements**:
+     ```bash
+     DATABASE_URL="postgresql://user:pass@host:5432/db?sslmode=require"
+     ```
+</Accordion>
+
+### Migration Errors
+
+<Accordion title="Migration failed: relation already exists" icon="database">
+  **Symptom**: Migration fails because tables already exist.
+  
+  ```bash
+  Error: P3005: Database schema is not empty
+  ```
+  
+  **Solutions**:
+  
+  1. **For new deployments**: Reset and reapply migrations:
+     ```bash
+     npx prisma migrate reset
+     npx prisma migrate deploy
+     ```
+     
+     <Warning>
+       This will delete all data! Only use in development.
+     </Warning>
+  
+  2. **For existing databases**: Mark migrations as applied:
+     ```bash
+     npx prisma migrate resolve --applied "migration-name"
+     ```
+  
+  3. **Generate baseline migration**:
+     ```bash
+     npx prisma migrate deploy --force-reset
+     ```
+</Accordion>
+
+<Accordion title="Shadow database error" icon="database">
+  **Symptom**: Cannot create shadow database.
+  
+  ```bash
+  Error: A shadow database is required
+  ```
+  
+  **Solutions**:
+  
+  1. **Create shadow database** in your provider:
+     - Supabase: Create second project for shadow DB
+     - Railway: Add second PostgreSQL service
+     - Vercel: Use non-pooling connection
+  
+  2. **Set SHADOW_DATABASE_URL**:
+     ```bash
+     SHADOW_DATABASE_URL="postgresql://user:pass@host:5432/shadow_db"
+     ```
+  
+  3. **Use Prisma's cloud shadow database** (development only):
+     ```prisma
+     datasource db {
+       provider = "postgresql"
+       url      = env("DATABASE_URL")
+       shadowDatabaseUrl = "prisma://accelerate.prisma-data.net/?api_key=..."
+     }
+     ```
+</Accordion>
+
+### Too Many Connections
+
+<Accordion title="Error: Too many connections" icon="users">
+  **Symptom**: Database rejects connections due to connection limit.
+  
+  ```bash
+  Error: remaining connection slots are reserved
+  ```
+  
+  **Solutions**:
+  
+  1. **Enable connection pooling** (required for serverless):
+     
+     **Supabase**:
+     ```bash
+     DATABASE_URL="postgresql://...@pooler.host:6543/db?pgbouncer=true"
+     ```
+     
+     **Vercel Postgres**:
+     ```bash
+     DATABASE_URL=$POSTGRES_PRISMA_URL
+     ```
+  
+  2. **Limit connections per function**:
+     ```bash
+     DATABASE_URL="postgresql://...?connection_limit=1"
+     ```
+  
+  3. **Use Prisma Data Proxy** for connection management:
+     ```bash
+     DATABASE_URL="prisma://accelerate.prisma-data.net/?api_key=..."
+     ```
+  
+  4. **Close connections properly**:
+     ```typescript
+     await prisma.$disconnect();
+     ```
+</Accordion>
+
+## Runtime Errors
+
+### Stripe Integration Issues
+
+<Accordion title="Stripe webhook signature verification failed" icon="stripe">
+  **Symptom**: Webhook events are rejected.
+  
+  ```bash
+  Error: No signatures found matching the expected signature
+  ```
+  
+  **Solutions**:
+  
+  1. **Verify webhook secret** is correct:
+     - Get secret from Stripe Dashboard → Webhooks
+     - Update `STRIPE_WEBHOOK_SECRET` in Vercel
+     - Redeploy
+  
+  2. **Check webhook URL** is correct:
+     ```
+     https://your-domain.com/api/stripe/webhook
+     ```
+  
+  3. **Test webhook locally**:
+     ```bash
+     stripe listen --forward-to localhost:3000/api/stripe/webhook
+     ```
+  
+  4. **Review webhook payload** in Stripe Dashboard:
+     - Check for delivery failures
+     - Verify events are being sent
+</Accordion>
+
+### Email Service Failures
+
+<Accordion title="EmailJS not sending emails" icon="envelope">
+  **Symptom**: Form submissions don't send emails.
+  
+  **Solutions**:
+  
+  1. **Verify EmailJS credentials**:
+     ```bash
+     NEXT_PUBLIC_EMAILJS_SERVICE_ID="service_xxx"
+     NEXT_PUBLIC_EMAILJS_TEMPLATE_ID="template_xxx"
+     NEXT_PUBLIC_EMAILJS_PUBLIC_KEY="xxx"
+     ```
+  
+  2. **Check EmailJS dashboard**:
+     - Verify service is active
+     - Check template exists
+     - Review email quota
+  
+  3. **Test with curl**:
+     ```bash
+     curl -X POST https://api.emailjs.com/api/v1.0/email/send \
+       -H "Content-Type: application/json" \
+       -d '{"service_id":"xxx","template_id":"xxx","user_id":"xxx"}'
+     ```
+  
+  4. **Check browser console** for errors
+</Accordion>
+
+### Image Loading Issues
+
+<Accordion title="Images not loading in production" icon="image">
+  **Symptom**: Images return 400 or 403 errors.
+  
+  **Solutions**:
+  
+  1. **Verify remote patterns** in `next.config.js`:
+     ```javascript
+     images: {
+       remotePatterns: [
+         {
+           protocol: 'https',
+           hostname: 'lh3.googleusercontent.com',
+         },
+         {
+           protocol: 'https',
+           hostname: 'images.prismic.io',
+         },
+       ],
+     }
+     ```
+  
+  2. **Check image URLs** are HTTPS
+  
+  3. **Verify domains allow hotlinking**
+  
+  4. **Use Next.js Image component**:
+     ```tsx
+     import Image from 'next/image';
+     
+     <Image
+       src="https://images.prismic.io/..."
+       alt="Description"
+       width={500}
+       height={300}
+     />
+     ```
+</Accordion>
+
+## Performance Issues
+
+### Slow Cold Starts
+
+<Accordion title="Application takes long to respond after inactivity" icon="clock">
+  **Symptom**: First request after idle period is slow (10+ seconds).
+  
+  **Solutions**:
+  
+  1. **Enable connection pooling**:
+     Reduces database connection overhead.
+     
+     ```bash
+     DATABASE_URL="postgresql://...?pgbouncer=true&connection_limit=1"
+     ```
+  
+  2. **Optimize bundle size**:
+     ```bash
+     npm run build
+     ```
+     Check bundle analyzer for large dependencies.
+  
+  3. **Use static generation** where possible:
+     ```typescript
+     export const dynamic = 'force-static';
+     ```
+  
+  4. **Upgrade Vercel plan** for reduced cold starts:
+     Pro plan has faster function initialization.
+</Accordion>
+
+### High Memory Usage
+
+<Accordion title="Function exceeds memory limit" icon="memory">
+  **Symptom**: Serverless functions crash with out-of-memory errors.
+  
+  ```bash
+  Error: Function exceeded memory limit
+  ```
+  
+  **Solutions**:
+  
+  1. **Optimize queries** to fetch less data:
+     ```typescript
+     // Select only needed fields
+     const users = await prisma.user.findMany({
+       select: {
+         id: true,
+         email: true,
+       },
+     });
+     ```
+  
+  2. **Implement pagination**:
+     ```typescript
+     const users = await prisma.user.findMany({
+       skip: page * limit,
+       take: limit,
+     });
+     ```
+  
+  3. **Close connections**:
+     ```typescript
+     await prisma.$disconnect();
+     ```
+  
+  4. **Increase function memory** (Vercel Pro):
+     ```json vercel.json
+     {
+       "functions": {
+         "api/**/*.ts": {
+           "memory": 1024
+         }
+       }
+     }
+     ```
+</Accordion>
+
+## Debugging Tools
+
+### Vercel Logs
+
+View real-time logs:
+
+```bash
+vercel logs <deployment-url> --follow
+```
+
+Filter by function:
+
+```bash
+vercel logs --filter="/api/stripe/webhook"
+```
+
+### Prisma Debug Logging
+
+Enable detailed Prisma logs:
+
+```typescript lib/prisma.ts
+const prisma = new PrismaClient({
+  log: [
+    { emit: 'stdout', level: 'query' },
+    { emit: 'stdout', level: 'info' },
+    { emit: 'stdout', level: 'warn' },
+    { emit: 'stdout', level: 'error' },
+  ],
+});
+```
+
+### Local Production Build Testing
+
+Test production build locally:
+
+```bash
+npm run build
+npm start
+```
+
+This runs the actual production build, catching issues before deployment.
+
+### Vercel Preview Deployments
+
+Test changes in preview environments:
+
+1. Push to feature branch
+2. Vercel creates preview deployment
+3. Test at preview URL
+4. Merge to main only after verification
+
+<Tip>
+  Preview deployments use the same environment as production, making them ideal for testing.
+</Tip>
+
+## Error Monitoring
+
+### Set Up Error Tracking
+
+Integrate error monitoring service:
+
+```typescript app/error.tsx
+'use client';
+
+import { useEffect } from 'react';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    // Log error to monitoring service
+    console.error('Application error:', error);
+  }, [error]);
+
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+### Health Check Endpoint
+
+Create a health check for monitoring:
+
+```typescript app/api/health/route.ts
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET() {
+  try {
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    return NextResponse.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: error.message,
+      },
+      { status: 503 }
+    );
+  }
+}
+```
+
+## Getting Help
+
+### Check These Resources First
+
+<CardGroup cols={2}>
+  <Card title="Next.js Docs" icon="book" href="https://nextjs.org/docs">
+    Official Next.js documentation
+  </Card>
+  <Card title="Vercel Status" icon="signal" href="https://vercel-status.com">
+    Check for platform outages
+  </Card>
+  <Card title="Prisma Docs" icon="database" href="https://prisma.io/docs">
+    Prisma ORM documentation
+  </Card>
+  <Card title="Vercel Support" icon="question" href="https://vercel.com/support">
+    Contact Vercel support
+  </Card>
+</CardGroup>
+
+### Provide This Information When Asking for Help
+
+<Steps>
+  <Step title="Error Message">
+    Copy the complete error message and stack trace.
+  </Step>
+  
+  <Step title="Build Logs">
+    Include relevant build logs from Vercel.
+  </Step>
+  
+  <Step title="Environment Details">
+    - Node.js version
+    - Next.js version
+    - Deployment platform
+    - Database provider
+  </Step>
+  
+  <Step title="Steps to Reproduce">
+    Describe what actions trigger the error.
+  </Step>
+</Steps>
+
+## Prevention Checklist
+
+Avoid common issues with this pre-deployment checklist:
+
+<Steps>
+  <Step title="Run Tests Locally">
+    ```bash
+    npm run check-style
+    npm run test-build
+    ```
+  </Step>
+  
+  <Step title="Verify Environment Variables">
+    - All variables set in Vercel
+    - Correct values for production
+    - No test/development secrets in production
+  </Step>
+  
+  <Step title="Test Database Connection">
+    ```bash
+    npx prisma db pull
+    npx prisma migrate deploy
+    ```
+  </Step>
+  
+  <Step title="Review Build Logs">
+    Check for warnings or deprecation notices.
+  </Step>
+  
+  <Step title="Test in Preview Environment">
+    Deploy to preview branch first, verify functionality.
+  </Step>
+</Steps>
+
+<Tip>
+  Most issues can be prevented by testing thoroughly in preview environments before deploying to production.
+</Tip>
+
+## Next Steps
+
+If you've resolved your deployment issues:
+
+- [Deploy to Vercel](/deployment/vercel)
+- [Configure Database](/deployment/database)
+- [Deployment Overview](/deployment/overview)

@@ -1,0 +1,422 @@
+---
+title: EmailJS Integration
+description: Send emails from contact forms and notifications using EmailJS in Miniswimmer
+icon: envelope
+---
+
+## Overview
+
+Miniswimmer uses EmailJS (@emailjs/browser v4.4.1) to send emails directly from the client-side without requiring a backend server. This integration powers all contact forms, test class registrations, and rescheduling requests.
+
+## Installation
+
+EmailJS is already included in the project dependencies:
+
+```json package.json
+{
+  "dependencies": {
+    "@emailjs/browser": "^4.4.1"
+  }
+}
+```
+
+To install or update:
+
+```bash
+npm install @emailjs/browser
+```
+
+## Configuration
+
+### Environment Setup
+
+EmailJS requires three configuration values:
+
+1. **Service ID**: Your email service provider (e.g., Gmail, Outlook)
+2. **Template ID**: The email template to use
+3. **Public Key**: Your EmailJS account public key
+
+<Note>
+  Currently, these values are hardcoded in the components. For production, consider moving them to environment variables:
+  - `NEXT_PUBLIC_EMAILJS_SERVICE_ID`
+  - `NEXT_PUBLIC_EMAILJS_PUBLIC_KEY`
+</Note>
+
+### Current Configuration
+
+The platform uses the following EmailJS configuration:
+
+- **Service ID**: `service_ucb8wga`
+- **Public Key**: `Csc41asZklkk5HTWk`
+- **Templates**:
+  - `template_3z2nv7b` - General contact form (Chile)
+  - `template_xcg0oul` - Test class registration
+
+## Implementation
+
+### Basic Contact Form
+
+Here's the complete implementation from `/src/components/Common/ContactForm/index.tsx`:
+
+```tsx ContactForm.tsx
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import emailjs from '@emailjs/browser';
+
+// Form validation schema
+const schema = yup.object({
+  nombre: yup.string().required('El nombre es requerido'),
+  email: yup.string().email('Email inválido').required('El email es requerido'),
+  mensaje: yup.string().required('El mensaje es requerido')
+}).required();
+
+type FormData = yup.InferType<typeof schema>;
+
+function ContactForm() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSentEmail, setIsSentEmail] = useState({
+    sentEmail: false,
+    isFailure: false,
+    title: "",
+    text: "",
+  });
+  
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<FormData>({
+    resolver: yupResolver(schema)
+  });
+
+  const onSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
+    setIsSentEmail({
+      sentEmail: true,
+      isFailure: false,
+      title: "Conectando al satélite, por favor espere un momento ⌛",
+      text: "Estamos enviando su solicitud.",
+    });
+    
+    try {
+      const templateParams = {
+        from_name: data.nombre,
+        from_email: data.email,
+        message: data.mensaje,
+        to_name: 'Miniswimmer',
+      };
+
+      await emailjs.send(
+        'service_ucb8wga',
+        'template_3z2nv7b',
+        templateParams,
+        'Csc41asZklkk5HTWk'
+      );
+
+      reset();
+      setIsSentEmail({
+        sentEmail: true,
+        isFailure: false,
+        title: "Mensaje enviado 🎉",
+        text: "Nos pondremos en contacto con usted lo antes posible.",
+      });
+    } catch (error) {
+      console.error('Error al enviar el email:', error);
+      setIsSentEmail({
+        sentEmail: true,
+        isFailure: true,
+        title: "No se pudo enviar el mensaje 😭",
+        text: "Puedes enviarnos un mensaje a welcome@miniswimmer.cl.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Form fields */}
+    </form>
+  );
+}
+```
+
+### Template Parameters
+
+EmailJS templates receive parameters that map to your email template variables:
+
+```tsx
+const templateParams = {
+  from_name: data.nombre,      // Sender's name
+  from_email: data.email,      // Sender's email
+  message: data.mensaje,       // Message content
+  to_name: 'Miniswimmer',     // Recipient name
+};
+```
+
+<Tip>
+  Template parameter names must exactly match the variable names defined in your EmailJS template.
+</Tip>
+
+## Form Implementations
+
+Miniswimmer has four EmailJS implementations:
+
+### 1. Contact Form
+
+**Location**: `src/components/Common/ContactForm/index.tsx`
+
+**Template**: `template_3z2nv7b`
+
+**Fields**:
+- Name (nombre)
+- Email
+- Message (mensaje)
+
+### 2. Test Class Form
+
+**Location**: `src/components/Common/TestClassForm/index.tsx`
+
+**Template**: `template_xcg0oul`
+
+**Fields**:
+- Guardian name (nombre)
+- Guardian email
+- Guardian phone
+- Selected time slot
+- Message (mensaje)
+
+### 3. Test Class Contact
+
+**Location**: `src/components/Common/TestClassContact/index.tsx`
+
+**Template**: Similar to test class form
+
+### 4. Rescheduling Form
+
+**Location**: `src/components/Common/ReagendamientoForm/index.tsx`
+
+**Template**: Custom rescheduling template
+
+## Advanced Features
+
+### Form Validation with Yup
+
+All forms use Yup for schema validation:
+
+```tsx
+const schema = yup.object({
+  nombre: yup.string().required('El nombre es requerido'),
+  email: yup
+    .string()
+    .email('Email inválido')
+    .required('El email es requerido'),
+  phone: yup.string().required('El teléfono es requerido'),
+  mensaje: yup.string().required('El mensaje es requerido')
+}).required();
+```
+
+### React Hook Form Integration
+
+EmailJS works seamlessly with React Hook Form:
+
+```tsx
+const {
+  register,
+  handleSubmit,
+  formState: { errors },
+  reset
+} = useForm<FormData>({
+  resolver: yupResolver(schema)
+});
+```
+
+### User Feedback States
+
+The implementation includes three states:
+
+<Steps>
+  <Step title="Loading State">
+    Display a loading message while the email is being sent.
+    
+    ```tsx
+    title: "Conectando al satélite, por favor espere un momento ⌛"
+    ```
+  </Step>
+  
+  <Step title="Success State">
+    Show confirmation when the email is successfully sent.
+    
+    ```tsx
+    title: "Mensaje enviado 🎉"
+    text: "Nos pondremos en contacto con usted lo antes posible."
+    ```
+  </Step>
+  
+  <Step title="Error State">
+    Provide fallback contact information if sending fails.
+    
+    ```tsx
+    title: "No se pudo enviar el mensaje 😭"
+    text: "Puedes enviarnos un mensaje a welcome@miniswimmer.cl."
+    ```
+  </Step>
+</Steps>
+
+## Best Practices
+
+### 1. Client-Side Only
+
+EmailJS must run in client components:
+
+```tsx
+'use client';
+
+import emailjs from '@emailjs/browser';
+```
+
+### 2. Error Handling
+
+Always implement comprehensive error handling:
+
+```tsx
+try {
+  await emailjs.send(serviceId, templateId, params, publicKey);
+  // Success handling
+} catch (error) {
+  console.error('Error al enviar el email:', error);
+  // Error handling with fallback contact info
+}
+```
+
+### 3. Rate Limiting
+
+<Warning>
+  EmailJS has rate limits based on your plan. Implement client-side throttling to prevent abuse:
+  - Disable submit button during sending
+  - Add cooldown period between submissions
+  - Consider adding CAPTCHA for public forms
+</Warning>
+
+### 4. Form Reset
+
+Always reset the form after successful submission:
+
+```tsx
+await emailjs.send(...);
+reset(); // Clear all form fields
+```
+
+### 5. Loading States
+
+Prevent double submissions by disabling the button:
+
+```tsx
+<button
+  type="submit"
+  disabled={isSubmitting}
+  className="disabled:opacity-50"
+>
+  {isSubmitting ? 'Enviando...' : 'Enviar'}
+</button>
+```
+
+## Testing
+
+### Test Mode
+
+EmailJS doesn't have a dedicated test mode, but you can:
+
+1. Create a separate test template
+2. Send emails to a test address
+3. Use conditional logic based on environment:
+
+```tsx
+const serviceId = process.env.NODE_ENV === 'production' 
+  ? 'service_ucb8wga' 
+  : 'service_test';
+```
+
+### Console Logging
+
+Log template parameters during development:
+
+```tsx
+if (process.env.NODE_ENV === 'development') {
+  console.log('EmailJS params:', templateParams);
+}
+```
+
+## Troubleshooting
+
+### Common Errors
+
+**"Failed to send email"**
+- Verify service ID, template ID, and public key
+- Check EmailJS dashboard for account status
+- Ensure template variables match parameter names
+
+**"Template not found"**
+- Confirm template ID exists in your EmailJS account
+- Check that the template is published
+
+**"Rate limit exceeded"**
+- Upgrade your EmailJS plan
+- Implement client-side rate limiting
+- Add CAPTCHA protection
+
+### Network Issues
+
+<Note>
+  EmailJS requires internet connectivity. Implement proper error handling to inform users if the submission fails due to network issues.
+</Note>
+
+## Migration to Environment Variables
+
+To improve security, move credentials to environment variables:
+
+<Steps>
+  <Step title="Create environment variables">
+    Add to `.env.local`:
+    
+    ```bash .env.local
+    NEXT_PUBLIC_EMAILJS_SERVICE_ID=service_ucb8wga
+    NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=Csc41asZklkk5HTWk
+    NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE=template_3z2nv7b
+    NEXT_PUBLIC_EMAILJS_TEST_CLASS_TEMPLATE=template_xcg0oul
+    ```
+  </Step>
+  
+  <Step title="Update component code">
+    Replace hardcoded values:
+    
+    ```tsx
+    await emailjs.send(
+      process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+      process.env.NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE!,
+      templateParams,
+      process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
+    );
+    ```
+  </Step>
+  
+  <Step title="Add to version control">
+    Create `.env.example` for documentation:
+    
+    ```bash .env.example
+    NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
+    NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
+    ```
+  </Step>
+</Steps>
+
+## Related Resources
+
+- [EmailJS Documentation](https://www.emailjs.com/docs/)
+- [React Hook Form](https://react-hook-form.com/)
+- [Yup Validation](https://github.com/jquense/yup)

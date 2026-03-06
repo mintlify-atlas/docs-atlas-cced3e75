@@ -1,0 +1,425 @@
+---
+title: 'Layout Components'
+description: 'Header, Footer, and structural components that define the page layout'
+---
+
+## Overview
+
+Layout components provide the structural foundation for all pages in the Miniswimmer platform. They include the Header with navigation, Footer with links and social media, and wrapper components for consistent styling.
+
+## Header Component
+
+The Header component (`src/components/Header/index.tsx`) provides navigation, language switching, and responsive mobile menu functionality.
+
+### Features
+
+- Sticky navigation on scroll
+- Responsive hamburger menu for mobile
+- Language switcher (i18n support)
+- Dynamic active link highlighting
+- Support for dropdown menus
+- Dark/light mode logo switching
+
+### Basic Usage
+
+```tsx
+import Header from '@/components/Header';
+
+function Layout({ children }) {
+  return (
+    <>
+      <Header />
+      <main>{children}</main>
+    </>
+  );
+}
+```
+
+### Component Structure
+
+The Header uses several sub-components:
+
+- **Main Header** - Container with sticky positioning
+- **Logo** - Brand image with dark mode support
+- **Navigation Menu** - Desktop and mobile navigation
+- **Language Switcher** - i18n language selection
+- **Contact Button** - CTA button linking to contact page
+- **Mobile Menu Toggle** - Hamburger animation
+
+### Implementation Details
+
+<CodeGroup>
+```tsx Header Component
+'use client';
+import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { menuData } from './menuData';
+import Dropdown from './Dropdown';
+import { LanguageSwitcher } from './language-switcher';
+
+const Header = () => {
+  const t = useTranslations('header');
+  const [stickyMenu, setStickyMenu] = useState(false);
+  const [navbarOpen, setNavbarOpen] = useState(false);
+  const pathUrl = usePathname();
+
+  const handleStickyMenu = () => {
+    if (window.scrollY > 0) {
+      setStickyMenu(true);
+    } else {
+      setStickyMenu(false);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleStickyMenu);
+  });
+
+  return (
+    <header className={`fixed left-0 top-0 z-999 w-full transition-all duration-300 ease-in-out ${
+      stickyMenu ? 'bg-primary py-4 shadow xl:py-0' : 'bg-primary py-7 xl:py-0'
+    }`}>
+      {/* Header content */}
+    </header>
+  );
+};
+```
+
+```ts Menu Data Structure
+// src/components/Header/menuData.ts
+import { Menu } from '@/types/menu';
+
+export const menuData: Menu[] = [
+  {
+    id: 2,
+    titleKey: 'program',
+    newTab: false,
+    path: '/metodo',
+  },
+  {
+    id: 3,
+    titleKey: 'about',
+    newTab: false,
+    path: '/nosotros',
+  },
+  {
+    id: 5,
+    titleKey: 'services',
+    newTab: false,
+    path: '/servicios',
+  },
+  // More menu items...
+];
+```
+</CodeGroup>
+
+### Menu Configuration
+
+Menu items are configured in `menuData.ts` using translation keys:
+
+<ParamField path="id" type="number" required>
+  Unique identifier for the menu item
+</ParamField>
+
+<ParamField path="titleKey" type="string" required>
+  Translation key for the menu item text (e.g., 'program' maps to 'header.program')
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Route path for the menu item
+</ParamField>
+
+<ParamField path="newTab" type="boolean">
+  Whether to open link in new tab (default: false)
+</ParamField>
+
+<ParamField path="submenu" type="Menu[]">
+  Optional array of submenu items for dropdown menus
+</ParamField>
+
+### Sticky Menu Behavior
+
+The header becomes sticky when scrolling:
+
+```tsx
+const handleStickyMenu = () => {
+  if (window.scrollY > 0) {
+    setStickyMenu(true);
+  } else {
+    setStickyMenu(false);
+  }
+};
+```
+
+<Note>
+  The sticky menu reduces padding to save space when scrolled.
+</Note>
+
+### Mobile Navigation
+
+The mobile menu uses animated hamburger icon:
+
+```tsx
+const [navbarOpen, setNavbarOpen] = useState(false);
+
+const navbarToggleHandler = () => {
+  setNavbarOpen(!navbarOpen);
+};
+```
+
+## Dropdown Component
+
+Dropdown menus for navigation items with submenus (`src/components/Header/Dropdown.tsx`).
+
+### Usage
+
+```tsx
+<Dropdown
+  stickyMenu={stickyMenu}
+  item={menuItem}
+  setNavbarOpen={setNavbarOpen}
+/>
+```
+
+### Props
+
+<ParamField path="stickyMenu" type="boolean" required>
+  Whether the header is in sticky mode
+</ParamField>
+
+<ParamField path="item" type="Menu" required>
+  Menu item with submenu array
+</ParamField>
+
+<ParamField path="setNavbarOpen" type="function" required>
+  Callback to close mobile menu when item is clicked
+</ParamField>
+
+### Implementation
+
+```tsx Dropdown.tsx
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+import { Menu } from '@/types/menu';
+
+const Dropdown = ({ stickyMenu, item, setNavbarOpen }: DropdownProps) => {
+  const [dropdown, setDropdown] = useState(false);
+  const pathname = usePathname();
+  const t = useTranslations('header');
+
+  return (
+    <div className='group relative'>
+      <button onClick={() => setDropdown(!dropdown)}>
+        {t('pages')}
+        {/* Dropdown icon */}
+      </button>
+      
+      <ul className={`dropdown ${dropdown && 'flex'}`}>
+        {item?.submenu?.map((subItem) => (
+          <li key={subItem.id}>
+            <Link href={subItem.path}>
+              {t(subItem.titleKey)}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+```
+
+## Footer Component
+
+The Footer component (`src/components/Footer/index.tsx`) displays site navigation, social links, and copyright information.
+
+### Features
+
+- Multi-column layout
+- Menu links from header menuData
+- Social media icons (Instagram, Facebook, LinkedIn)
+- Blog post links
+- External website links
+- Responsive grid layout
+- Background decorative SVG elements
+
+### Basic Usage
+
+```tsx
+import Footer from '@/components/Footer';
+
+function Layout({ children }) {
+  return (
+    <>
+      <main>{children}</main>
+      <Footer />
+    </>
+  );
+}
+```
+
+### Footer Sections
+
+<Tabs>
+  <Tab title="Logo & Copyright">
+    ```tsx
+    <div className='w-full max-w-[275px]'>
+      <Link href='/'>
+        {/* Miniswimmer Logo SVG */}
+      </Link>
+      <p className='mt-5 text-gray-5'>
+        {t.rich('copyright', {
+          marker: chunks => (
+            <a href='https://www.manuelo.dev/' target="_blank">
+              {chunks}
+            </a>
+          ),
+        })}
+      </p>
+      {/* Social media icons */}
+    </div>
+    ```
+  </Tab>
+  
+  <Tab title="Menu Links">
+    ```tsx
+    <div className='w-full sm:w-auto min-w-40'>
+      <h2 className='mb-5 font-satoshi text-lg font-bold text-white'>
+        Menú
+      </h2>
+      <ul className='flex flex-col gap-3'>
+        {menuData?.map((item) => (
+          <li key={item.id}>
+            <Link href={item.path}>
+              {h(item.titleKey)}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+    ```
+  </Tab>
+  
+  <Tab title="Blog Posts">
+    ```tsx
+    <div className='w-full sm:w-auto'>
+      <h2 className='mb-5 font-satoshi text-lg font-bold text-white'>
+        Blog
+      </h2>
+      <ul className='flex flex-col gap-3'>
+        {posts?.slice(0, 3).map((item) => (
+          <li key={item.url}>
+            <a href={item.url}>{item.title}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+    ```
+  </Tab>
+  
+  <Tab title="Website Links">
+    ```tsx
+    <div className='w-full sm:w-auto min-w-56'>
+      <h2 className='mb-5 font-satoshi text-lg font-bold text-white'>
+        Websites
+      </h2>
+      <ul className='flex flex-col gap-3'>
+        <li>
+          <a href='https://miniswimmer.academy/'>
+            Miniswimmer Academia
+          </a>
+        </li>
+        <li>
+          <a href='https://miniswimmer.cl/'>
+            Miniswimmer Chile
+          </a>
+        </li>
+        {/* More links */}
+      </ul>
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+### Social Media Integration
+
+The footer includes social media icons with SVG graphics:
+
+```tsx
+<ul className='mt-11 flex items-center gap-2'>
+  <li>
+    <a
+      href='https://www.instagram.com/miniswimmer.chile'
+      aria-label='Instagram Chile'
+      target="_blank"
+      rel="nofollow"
+    >
+      {/* Instagram SVG icon */}
+    </a>
+  </li>
+  {/* LinkedIn, Facebook icons */}
+</ul>
+```
+
+<Tip>
+  All external links use `target="_blank"` and `rel="nofollow"` for SEO and security.
+</Tip>
+
+### Responsive Layout
+
+The footer uses Tailwind responsive classes:
+
+```tsx
+<div className='flex flex-wrap gap-10 lg:justify-between xl:flex-nowrap xl:gap-20'>
+  {/* Columns stack on mobile, side-by-side on desktop */}
+</div>
+```
+
+## Styling Guidelines
+
+### Color Scheme
+
+- **Primary Background**: `bg-primary` (header) / `bg-black` (footer)
+- **Text Colors**: `text-white` for headers, `text-gray-5` for secondary text
+- **Hover States**: `hover:text-white`, `hover:bg-white/5`
+
+### Spacing
+
+- **Container Width**: `max-w-[1170px]` - Consistent max width
+- **Padding**: `px-4 sm:px-8 xl:px-0` - Responsive horizontal padding
+- **Vertical Spacing**: `py-17.5` on footer
+
+### Typography
+
+- **Font Family**: Satoshi
+- **Heading Sizes**: `text-lg` for section headings
+- **Font Weights**: `font-bold` for headings, `font-medium` for links
+
+## Accessibility
+
+<Note>
+  Layout components include proper ARIA labels and semantic HTML for accessibility.
+</Note>
+
+- **Semantic HTML**: `<header>`, `<nav>`, `<footer>` tags
+- **ARIA Labels**: `aria-label` on buttons and links
+- **Keyboard Navigation**: Focus states and tab order
+- **Screen Readers**: Descriptive link text and labels
+
+## Best Practices
+
+1. **Always include Header and Footer** in page layouts
+2. **Use menuData.ts** for consistent navigation across Header and Footer
+3. **Add translations** for all text content in locale files
+4. **Test mobile menu** functionality on different screen sizes
+5. **Maintain z-index hierarchy** (Header: z-999 to stay on top)
+6. **Optimize images** using Next.js Image component
+
+## Next Steps
+
+<Card title="Common Components" icon="grid" href="/components/common">
+  Learn about reusable UI components like Hero, Features, and Testimonials
+</Card>

@@ -1,0 +1,316 @@
+---
+title: Installation Guide
+description: Complete installation guide for the Miniswimmer swimming academy platform
+---
+
+## Overview
+
+Miniswimmer is a Next.js 15 SaaS application for swimming schools built with React 19, TypeScript, Tailwind CSS, and Prisma. This guide will walk you through the complete installation process.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js**: Version 14.0.0 or higher
+- **npm** or **yarn**: Package manager
+- **PostgreSQL**: Database server
+- **Git**: Version control
+
+<Note>
+  The platform requires Node.js 14.0.0 or higher as specified in the package.json engines field.
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the Miniswimmer repository to your local machine:
+
+    ```bash
+    git clone <repository-url>
+    cd miniswimmer-public-site
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    This will install all dependencies including:
+    - **Next.js 15.2.8** - React framework
+    - **React 19.0.0** - UI library
+    - **TypeScript 5.3.3** - Type safety
+    - **Tailwind CSS 3.4.4** - Styling
+    - **Prisma** - Database ORM
+    - **next-intl 3.26.5** - Internationalization
+    - **EmailJS 4.4.1** - Email service
+    - **React Hook Form 7.56.2** - Form management
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in the root directory and configure all required environment variables.
+
+    <Warning>
+      Do not commit your `.env` file to version control. Add it to `.gitignore`.
+    </Warning>
+
+    See the [Environment Variables](/setup/environment-variables) page for complete configuration details.
+  </Step>
+
+  <Step title="Set Up the Database">
+    Initialize your PostgreSQL database and run Prisma migrations:
+
+    ```bash
+    # Generate Prisma Client
+    npx prisma generate
+
+    # Run database migrations
+    npx prisma migrate dev
+
+    # (Optional) Open Prisma Studio to view your database
+    npx prisma studio
+    ```
+
+    <Tip>
+      Prisma Studio provides a visual interface to view and edit your database at `http://localhost:5555`
+    </Tip>
+  </Step>
+
+  <Step title="Configure Integrations">
+    Update the `integrations.config.tsx` file to enable/disable platform features:
+
+    ```tsx integrations.config.tsx
+    const integrations = {
+      isSanityEnabled: false,
+      isOpenAIEnabled: false,
+      isAlgoliaEnabled: false,
+      isMailchimpEnabled: false,
+      isAuthEnabled: true,
+      isPaymentsEnabled: false,
+      isI18nEnabled: true,
+    };
+    ```
+
+    See the [Configuration](/setup/configuration) page for detailed integration setup.
+  </Step>
+
+  <Step title="Run Development Server">
+    Start the development server:
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will be available at `http://localhost:3000`
+  </Step>
+</Steps>
+
+## Package Scripts
+
+The platform includes several npm scripts for different tasks:
+
+### Development
+
+```bash
+# Start development server
+npm run dev
+
+# Start production server
+npm run start
+```
+
+### Building
+
+```bash
+# Build for production
+npm run build
+
+# Test build with linting and formatting checks
+npm run test-build
+```
+
+<Note>
+  The `postbuild` script automatically generates a sitemap after each build using `scripts/generate-sitemap.js`
+</Note>
+
+### Code Quality
+
+```bash
+# Check code formatting
+npm run check-format
+
+# Check linting errors
+npm run check-lint
+
+# Check both formatting and linting
+npm run check-style
+
+# Fix formatting issues
+npm run fix-format
+
+# Fix linting issues
+npm run fix-lint
+
+# Fix all style issues
+npm run fix-style
+```
+
+### Stripe Webhooks (Development)
+
+```bash
+# Listen for Stripe webhook events locally
+npm run stripe:listen
+```
+
+<Warning>
+  Ensure you have the Stripe CLI installed and configured before running webhook listeners.
+</Warning>
+
+## Project Structure
+
+```
+miniswimmer-public-site/
+├── src/
+│   ├── app/              # Next.js 15 App Router pages
+│   ├── components/       # React components
+│   ├── i18n/            # Internationalization configuration
+│   └── pages/           # Additional pages
+├── prisma/
+│   └── schema.prisma    # Database schema
+├── public/              # Static assets
+├── scripts/             # Utility scripts
+├── next.config.js       # Next.js configuration
+├── tailwind.config.ts   # Tailwind CSS configuration
+├── tsconfig.json        # TypeScript configuration
+└── integrations.config.tsx  # Feature flags
+```
+
+## Technology Stack
+
+### Core Framework
+- **Next.js 15.2.8** - React framework with App Router
+- **React 19.0.0** - UI library
+- **TypeScript 5.3.3** - Type safety
+
+### Styling
+- **Tailwind CSS 3.4.4** - Utility-first CSS framework
+- **Styled Components 6.1** - CSS-in-JS library
+- **next-themes 0.2.1** - Dark mode support
+- **nextjs-toploader 1.6.6** - Loading progress bar
+
+### Forms & Validation
+- **React Hook Form 7.56.2** - Form state management
+- **Yup 1.6.1** - Schema validation
+- **@hookform/resolvers 5.0.1** - Validation resolver
+
+### Database & ORM
+- **Prisma** - Next-generation ORM
+- **PostgreSQL** - Relational database
+
+### Internationalization
+- **next-intl 3.26.5** - i18n for Next.js
+- **deepmerge 4.3.1** - Deep merging of translation files
+
+### Email & Communication
+- **@emailjs/browser 4.4.1** - Email service integration
+- **react-hot-toast 2.4.1** - Toast notifications
+
+### Search
+- **react-instantsearch 7.15.4** - Algolia search integration (optional)
+
+### Other Utilities
+- **clsx 2.1.1** - Conditional className utilities
+- **tailwind-merge 3.0.1** - Merge Tailwind classes
+- **react-quill-new 3.3.3** - Rich text editor
+- **schema-dts 1.1.5** - JSON-LD schema types
+
+### Development Tools
+- **ESLint 8.56.0** - Code linting
+- **Prettier 3.1.1** - Code formatting
+- **TypeScript ESLint** - TypeScript linting rules
+- **Autoprefixer** - CSS vendor prefixing
+
+## Verification
+
+After installation, verify everything is working:
+
+<Steps>
+  <Step title="Check Development Server">
+    Visit `http://localhost:3000` and ensure the homepage loads correctly.
+  </Step>
+
+  <Step title="Verify Database Connection">
+    Check that Prisma can connect to your database:
+
+    ```bash
+    npx prisma db pull
+    ```
+  </Step>
+
+  <Step title="Test Internationalization">
+    Switch between English and Spanish to verify i18n is working.
+  </Step>
+
+  <Step title="Run Type Checking">
+    Ensure there are no TypeScript errors:
+
+    ```bash
+    npx tsc --noEmit
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<Accordion title="Node version mismatch">
+  If you encounter Node version issues, ensure you're using Node.js 14.0.0 or higher:
+
+  ```bash
+  node --version
+  ```
+
+  Consider using [nvm](https://github.com/nvm-sh/nvm) to manage Node versions.
+</Accordion>
+
+<Accordion title="Database connection errors">
+  Verify your `DATABASE_URL` in the `.env` file is correct and PostgreSQL is running:
+
+  ```bash
+  # Check PostgreSQL status
+  pg_isready
+  ```
+</Accordion>
+
+<Accordion title="Prisma Client not generated">
+  If you get Prisma Client errors, regenerate it:
+
+  ```bash
+  npx prisma generate
+  ```
+</Accordion>
+
+<Accordion title="Port 3000 already in use">
+  If port 3000 is occupied, specify a different port:
+
+  ```bash
+  PORT=3001 npm run dev
+  ```
+</Accordion>
+
+## Next Steps
+
+After successful installation:
+
+1. Review the [Configuration Guide](/setup/configuration) to customize Next.js, Tailwind, and TypeScript settings
+2. Set up all [Environment Variables](/setup/environment-variables) for production
+3. Configure your database schema in `prisma/schema.prisma`
+4. Customize the integration flags in `integrations.config.tsx`
+5. Set up EmailJS for contact forms
+6. Configure Prismic CMS for content management
+
+<Tip>
+  Run `npm run test-build` before deploying to ensure your code passes all quality checks.
+</Tip>
